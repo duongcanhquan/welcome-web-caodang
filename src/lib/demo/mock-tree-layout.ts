@@ -63,8 +63,8 @@ export function buildDemoTreeLayout(studentCount = 95): TreeLayout {
       leavesMax: 1500,
       blossomEvery: 50,
       fillerAssets: [],
-      trunkConfig: { brandColor: "#3DBE8B", images: [] },
-      rootsText: "Khóa 2026 · Việt Mỹ College · Hà Nội",
+      trunkConfig: { brandColor: "#5c3d28", images: [] },
+      rootsText: "WELCOME · NEW LYONS · Việt Mỹ College",
       majorColors: DEMO_MAJOR_COLORS,
     },
     2026

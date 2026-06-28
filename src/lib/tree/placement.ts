@@ -10,30 +10,34 @@ function seededRandom(seed: number): () => number {
 }
 
 /**
- * Jittered grid + Poisson-like spacing — đặt lá tự nhiên trong mask.
- * Mỗi điểm mask → 1 slot với xoay và scale ngẫu nhiên có seed.
+ * Jittered grid + phân bố theo bán kính — lá xếp vòm từ trong ra ngoài.
  */
 export function placeLeavesNatural(
   points: { x: number; y: number }[],
   seed = 42
 ): LeafSlot[] {
   const rand = seededRandom(seed);
+  const cx = 0.5;
+  const cy = 0.46;
 
-  // Sắp xếp theo vị trí để phân bố đều (không dồn)
   const sorted = [...points].sort((a, b) => {
-    const ha = a.y * 1000 + a.x;
-    const hb = b.y * 1000 + b.x;
-    return ha - hb;
+    const da = Math.hypot(a.x - cx, a.y - cy);
+    const db = Math.hypot(b.x - cx, b.y - cy);
+    if (Math.abs(da - db) > 0.001) return da - db;
+    return Math.atan2(a.y - cy, a.x - cx) - Math.atan2(b.y - cy, b.x - cx);
   });
 
   return sorted.map((p) => {
-    const jitterX = (rand() - 0.5) * 0.018;
-    const jitterY = (rand() - 0.5) * 0.018;
+    const jitterX = (rand() - 0.5) * 0.022;
+    const jitterY = (rand() - 0.5) * 0.022;
+    const dist = Math.hypot(p.x - cx, p.y - cy);
+    const depthScale = 0.78 + (1 - Math.min(dist / 0.48, 1)) * 0.32;
+
     return {
       x: Math.min(0.98, Math.max(0.02, p.x + jitterX)),
       y: Math.min(0.92, Math.max(0.05, p.y + jitterY)),
-      rotation: (rand() - 0.5) * 36,
-      scale: 0.82 + rand() * 0.28,
+      rotation: (rand() - 0.5) * 28 + (p.x - cx) * 18,
+      scale: (0.8 + rand() * 0.22) * depthScale,
     };
   });
 }
@@ -62,7 +66,7 @@ export function placeFallenLeaves(
     const dist = 0.08 + rand() * 0.15;
     slots.push({
       x: 0.5 + Math.cos(angle) * dist,
-      y: 0.88 + rand() * 0.08,
+      y: 0.78 + rand() * 0.06,
       rotation: rand() * 360,
       scale: 0.6 + rand() * 0.3,
     });

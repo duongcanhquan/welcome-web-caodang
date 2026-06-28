@@ -5,8 +5,8 @@ import {
 } from "@/lib/demo/mock-tree-layout";
 
 export const metadata = {
-  title: "Demo — Cây Khóa hoàn chỉnh (xem trước)",
-  description: "Xem trước cây Khóa 2026 với ~95 lá sinh viên mẫu",
+  title: "Demo — Cây WELCOME NEW LYONS (xem trước)",
+  description: "Xem trước cây hoàn chỉnh với ~95 lá sinh viên mẫu",
 };
 
 export default async function DemoTreePage({

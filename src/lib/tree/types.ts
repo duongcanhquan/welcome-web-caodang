@@ -59,6 +59,8 @@ export interface TreeLayout {
     text: string;
     y: number;
   };
+  /** Vùng đất (normalized) */
+  ground?: { y: number; h: number };
   leaves: TreeLeaf[];
   totalSubmissions: number;
   blossomMilestone: number | null;

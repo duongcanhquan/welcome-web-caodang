@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await admin
     .from("submissions")
     .select(
-      "id, token, name, major, wish, leaf_url, photo_url, slot_index, hidden, created_at"
+      "id, token, name, dob, major, wish, leaf_url, photo_url, slot_index, hidden, created_at"
     )
     .eq("event_id", eventId)
     .order("created_at", { ascending: false });

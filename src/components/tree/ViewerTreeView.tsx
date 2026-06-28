@@ -113,7 +113,7 @@ export function ViewerTreeView({
             }}
             transition={{ duration: 4, repeat: Infinity }}
           >
-            ✨ Điều Kỳ Diệu — Cây Khóa 2026
+            ✨ Điều Kỳ Diệu — WELCOME NEW LYONS
           </motion.h1>
           <p className="mt-2 text-sm font-medium text-white/85">
             {layout.totalSubmissions} sinh viên · Gõ tên để tìm lá của bạn

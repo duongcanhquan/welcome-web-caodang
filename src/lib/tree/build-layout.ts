@@ -14,9 +14,12 @@ import type {
 const CANVAS_W = 900;
 const CANVAS_H = 1100;
 
-/** Vùng tán trên canvas (normalized) */
-const CANOPY = { x: 0.08, y: 0.04, w: 0.84, h: 0.52 };
-const TRUNK = { x: 0.42, y: 0.52, w: 0.16, h: 0.28 };
+/** Vòm tán — dome tròn phía trên thân */
+const CANOPY = { x: 0.06, y: 0.06, w: 0.88, h: 0.48 };
+/** Thân — nối tán xuống đất */
+const TRUNK = { x: 0.435, y: 0.48, w: 0.13, h: 0.26 };
+/** Mặt đất */
+const GROUND = { y: 0.74, h: 0.26 };
 
 function getMajorColor(
   major: string,
@@ -25,11 +28,16 @@ function getMajorColor(
   return colors[major] ?? colors["Khác"] ?? "#3DBE8B";
 }
 
-/** Chuyển slot normalized (trong mask 0..1) sang tọa độ canvas 0..1 */
+/** Chuyển slot mask → tọa độ canvas, cong nhẹ thành vòm 3D */
 function slotToCanvas(sx: number, sy: number): { x: number; y: number } {
+  const cx = 0.5;
+  const cy = 0.46;
+  const dist = Math.hypot(sx - cx, sy - cy);
+  const domeLift = (1 - Math.min(dist / 0.5, 1)) * 0.04;
+
   return {
     x: CANOPY.x + sx * CANOPY.w,
-    y: CANOPY.y + sy * CANOPY.h,
+    y: CANOPY.y + sy * CANOPY.h - domeLift,
   };
 }
 
@@ -167,8 +175,9 @@ export function buildTreeLayout(
     },
     roots: {
       text: settings.rootsText,
-      y: 0.88,
+      y: GROUND.y + GROUND.h * 0.72,
     },
+    ground: GROUND,
     leaves,
     totalSubmissions: n,
     blossomMilestone,

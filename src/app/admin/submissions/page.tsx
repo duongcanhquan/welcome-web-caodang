@@ -1,13 +1,19 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { AdminSubmissionsPanel } from "@/components/admin/AdminSubmissionsPanel";
-import { AdminEventOverview, type EventSettingsSnapshot } from "@/components/admin/AdminEventOverview";
+import { AdminDashboard } from "@/components/admin/AdminDashboard";
+import type { EventSettingsSnapshot } from "@/components/admin/AdminEventOverview";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_EVENT_SLUG, SEED_EVENT_ID } from "@/lib/constants";
 
-export const metadata = { title: "Admin — Kiểm duyệt & Chốt cây" };
+export const metadata = { title: "Admin — WELCOME NEW LYONS" };
 
-async function loadSnapshot(eventId: string, slug: string, status: string, name: string): Promise<EventSettingsSnapshot> {
+async function loadSnapshot(
+  eventId: string,
+  slug: string,
+  status: string,
+  name: string
+): Promise<EventSettingsSnapshot> {
   try {
     const admin = createAdminClient();
     const { data: settings } = await admin
@@ -15,11 +21,23 @@ async function loadSnapshot(eventId: string, slug: string, status: string, name:
       .select("*")
       .eq("event_id", eventId)
       .single();
-    const { count } = await admin
+    const { count: totalAll } = await admin
       .from("submissions")
       .select("*", { count: "exact", head: true })
+      .eq("event_id", eventId);
+
+    let aiEnabled = false;
+    let hasApiKey = false;
+    const { data: secrets } = await admin
+      .from("event_secrets")
+      .select("ai_enabled, deepseek_api_key")
       .eq("event_id", eventId)
-      .eq("hidden", false);
+      .maybeSingle();
+    if (secrets) {
+      aiEnabled = secrets.ai_enabled;
+      hasApiKey = Boolean(secrets.deepseek_api_key);
+    }
+
     return {
       slug,
       name,
@@ -31,7 +49,9 @@ async function loadSnapshot(eventId: string, slug: string, status: string, name:
       maxFileMb: Number(settings?.max_file_mb ?? 5),
       rateLimitPerIp: settings?.rate_limit_per_ip ?? 3,
       rootsText: settings?.roots_text ?? "",
-      totalSubmissions: count ?? 0,
+      totalSubmissions: totalAll ?? 0,
+      aiEnabled,
+      hasApiKey,
     };
   } catch {
     return {
@@ -68,7 +88,6 @@ export default async function AdminSubmissionsPage() {
   let eventId = SEED_EVENT_ID;
   let eventSlug = DEFAULT_EVENT_SLUG;
   let eventStatus = "collecting";
-  let eventName = "Cây Khóa 2026";
   let snapshot: EventSettingsSnapshot | null = null;
 
   try {
@@ -82,21 +101,24 @@ export default async function AdminSubmissionsPage() {
       eventId = event.id;
       eventSlug = event.slug;
       eventStatus = event.status;
-      eventName = event.name;
       snapshot = await loadSnapshot(event.id, event.slug, event.status, event.name);
     }
   } catch {
-    // Supabase chưa cấu hình — dùng seed defaults
+    // Supabase chưa cấu hình
   }
 
   return (
-    <div className="space-y-8">
-      {snapshot && <div className="mx-auto max-w-4xl px-4 pt-8"><AdminEventOverview settings={snapshot} /></div>}
-      <AdminSubmissionsPanel
-      eventId={eventId}
-      eventSlug={eventSlug}
-      eventStatus={eventStatus}
-    />
-    </div>
+    <Suspense
+      fallback={
+        <p className="py-20 text-center text-ink-muted">Đang tải admin…</p>
+      }
+    >
+      <AdminDashboard
+        eventId={eventId}
+        eventSlug={eventSlug}
+        eventStatus={eventStatus}
+        snapshot={snapshot}
+      />
+    </Suspense>
   );
 }

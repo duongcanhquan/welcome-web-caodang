@@ -45,6 +45,7 @@ export function TreeLeafNode({
   const left = leaf.x * canvasW - size / 2;
   const top = leaf.y * canvasH - size / 2;
   const clickable = !leaf.filler && Boolean(leaf.submissionId);
+  const isFallen = leaf.fallen;
 
   const swayClass =
     windSway || presentation ? "animate-leaf-wind" : "";
@@ -57,7 +58,7 @@ export function TreeLeafNode({
       className={`absolute origin-center transition-all duration-500 ${swayClass} ${
         clickable ? "cursor-pointer hover:z-20 hover:scale-110" : "cursor-default pointer-events-none"
       } ${isNew ? "animate-leaf-pop" : ""} ${
-        highlighted ? "z-30 !scale-[1.35]" : ""
+        highlighted ? "z-30 !scale-[1.35]" : isFallen ? "z-[4] opacity-80" : "z-[5]"
       }`}
       style={{
         left,
@@ -68,7 +69,9 @@ export function TreeLeafNode({
         animationDelay: `${swayDelay}s`,
         filter: highlighted
           ? "drop-shadow(0 0 16px #FFD15C) drop-shadow(0 0 32px #FFAE3B) drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
-          : "drop-shadow(0 3px 6px rgba(26,48,32,0.35))",
+          : isFallen
+            ? "drop-shadow(0 2px 4px rgba(26,48,32,0.25))"
+            : "drop-shadow(0 2px 5px rgba(26,48,32,0.4)) drop-shadow(0 0 8px rgba(61,190,139,0.15))",
       }}
       aria-label={leaf.name ?? "Lá trang trí"}
     >

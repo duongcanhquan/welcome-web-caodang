@@ -25,51 +25,44 @@ interface AdminEventOverviewProps {
   settings: EventSettingsSnapshot;
   aiEnabled?: boolean;
   hasApiKey?: boolean;
+  treeLocked?: boolean;
 }
 
 export function AdminEventOverview({
   settings,
   aiEnabled,
   hasApiKey,
+  treeLocked,
 }: AdminEventOverviewProps) {
-  const base = typeof window !== "undefined" ? window.location.origin : "";
   const links = [
     {
-      label: "🌳 Demo cây hoàn chỉnh",
+      label: "🌳 Demo cây",
       href: "/demo/tree?present=1",
-      desc: "Xem trước ~95 lá mẫu — trình chiếu",
-      highlight: true,
+      desc: "Xem trước ~95 lá mẫu",
     },
     {
       label: "✨ Demo thần số học",
       href: "/demo/numerology",
-      desc: "Màn chờ quote + kết quả",
-      highlight: true,
+      desc: "Màn chờ + kết quả",
     },
     {
-      label: "Màn LIVE",
-      href: `/live/${settings.slug}`,
-      desc: "Realtime khi thu thập",
+      label: "Form gửi ảnh",
+      href: "/join",
+      desc: "Link cho sinh viên",
     },
-    {
-      label: "Xem điều kỳ diệu",
-      href: `/v/${settings.slug}`,
-      desc: "Cây công khai",
-    },
-    {
-      label: "Trình chiếu cây thật",
-      href: `/v/${settings.slug}?present=1`,
-      desc: "Fullscreen nếu đã có lá",
-    },
+    ...(treeLocked
+      ? [
+          {
+            label: "Xem điều kỳ diệu",
+            href: `/v/${settings.slug}?present=1`,
+            desc: "Cây đã chốt — trình chiếu",
+          },
+        ]
+      : []),
     {
       label: "Trang chủ",
       href: "/",
       desc: "welcome.vietmycollege.com",
-    },
-    {
-      label: "Form gửi lá",
-      href: "/join",
-      desc: "Sinh viên gửi & xem thần số",
     },
   ];
 
@@ -81,35 +74,40 @@ export function AdminEventOverview({
     >
       <div>
         <GradientText as="h2" className="font-display text-xl font-bold">
-          Cài đặt sự kiện
+          Tổng quan sự kiện
         </GradientText>
         <p className="mt-1 text-sm text-ink-muted">
-          {settings.name} · slug: <code className="text-peach">{settings.slug}</code>
+          {settings.name} · <code className="text-peach">{settings.slug}</code>
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <InfoRow label="Trạng thái" value={settings.status === "locked" ? "🔒 Đã chốt" : "🌱 Đang thu thập"} />
-        <InfoRow label="Lá hiện có" value={`${settings.totalSubmissions} lá`} />
-        <InfoRow label="Fill ratio" value={String(settings.fillRatio)} />
-        <InfoRow label="Lá min / max" value={`${settings.leavesMin} – ${settings.leavesMax}`} />
-        <InfoRow label="Nở hoa mỗi" value={`${settings.blossomEvery} lá`} />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoRow
+          label="Trạng thái"
+          value={settings.status === "locked" ? "🔒 Đã chốt" : "🌱 Đang thu thập"}
+        />
+        <InfoRow label="Đã nộp" value={`${settings.totalSubmissions} bạn`} />
         <InfoRow label="Ảnh tối đa" value={`${settings.maxFileMb} MB`} />
-        <InfoRow label="Rate limit / IP" value={`${settings.rateLimitPerIp} / 24h`} />
+        <InfoRow label="Rate limit" value={`${settings.rateLimitPerIp}/IP·24h`} />
+        <InfoRow label="Fill ratio" value={String(settings.fillRatio)} />
+        <InfoRow label="Lá min–max" value={`${settings.leavesMin}–${settings.leavesMax}`} />
+        <InfoRow label="Nở hoa mỗi" value={`${settings.blossomEvery} lá`} />
         <InfoRow
           label="DeepSeek AI"
           value={
             aiEnabled
               ? hasApiKey
-                ? "✅ Bật + có API key"
-                : "⚠️ Bật nhưng chưa có key"
+                ? "✅ Bật"
+                : "⚠️ Chưa có key"
               : "Tắt"
           }
         />
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-foreground">Ngành học ({EVENT_MAJORS.length})</p>
+        <p className="mb-2 text-sm font-semibold text-foreground">
+          Ngành học ({EVENT_MAJORS.length})
+        </p>
         <div className="flex flex-wrap gap-1.5">
           {EVENT_MAJORS.map((m) => (
             <span
@@ -123,7 +121,8 @@ export function AdminEventOverview({
       </div>
 
       <p className="text-sm text-ink-muted">
-        <span className="font-semibold text-foreground">Gốc cây:</span> {settings.rootsText}
+        <span className="font-semibold text-foreground">Gốc cây:</span>{" "}
+        {settings.rootsText}
       </p>
 
       <div>
@@ -134,11 +133,7 @@ export function AdminEventOverview({
               key={link.href}
               href={link.href}
               target="_blank"
-              className={`rounded-xl border px-4 py-3 transition hover:scale-[1.02] ${
-                link.highlight
-                  ? "border-sprout/40 bg-sprout/10"
-                  : "border-peach/20 bg-surface-warm/50"
-              }`}
+              className="rounded-xl border border-peach/20 bg-surface-warm/50 px-4 py-3 transition hover:border-peach/40 hover:bg-surface-warm"
             >
               <p className="text-sm font-bold text-foreground">{link.label}</p>
               <p className="text-xs text-ink-muted">{link.desc}</p>
@@ -148,8 +143,7 @@ export function AdminEventOverview({
       </div>
 
       <p className="text-xs text-ink-muted">
-        Admin URL: <code>/admin</code> · Event mặc định: <code>{DEFAULT_EVENT_SLUG}</code>
-        {base ? ` · Site: ${base}` : ""}
+        Admin: <code>/admin</code> · Event: <code>{DEFAULT_EVENT_SLUG}</code>
       </p>
     </motion.section>
   );
@@ -158,7 +152,9 @@ export function AdminEventOverview({
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-surface-warm/80 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">{label}</p>
+      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+        {label}
+      </p>
       <p className="text-sm font-semibold text-foreground">{value}</p>
     </div>
   );

@@ -34,6 +34,7 @@ function supResponse(request: NextRequest, response: NextResponse) {
   // Bảo vệ route admin (trừ login)
   if (
     request.nextUrl.pathname.startsWith("/admin") &&
+    request.nextUrl.pathname !== "/admin" &&
     !request.nextUrl.pathname.startsWith("/admin/login")
   ) {
     // Auth check thực tế ở Server Component — middleware chỉ refresh session

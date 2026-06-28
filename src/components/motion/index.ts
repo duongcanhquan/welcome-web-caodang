@@ -1,6 +1,15 @@
 export { PageBackground } from "./PageBackground";
+export { MagicalSkyBackground } from "./MagicalSkyBackground";
 export { FadeIn } from "./FadeIn";
 export { Stagger, StaggerItem } from "./Stagger";
 export { GradientText } from "./GradientText";
 export { AnimatedButton } from "./AnimatedButton";
+export { ScrollReveal } from "./ScrollReveal";
+export { ParallaxSection } from "./ParallaxSection";
+export { TiltCard } from "./TiltCard";
+export { TypeReveal } from "./TypeReveal";
+export { ScrollProgress } from "./ScrollProgress";
+export { HorizontalScroll } from "./HorizontalScroll";
+export { ScrollSequence, type ScrollStep } from "./ScrollSequence";
+export { useScrollEffects, type ScrollEffect } from "./useScrollEffects";
 export * from "./presets";

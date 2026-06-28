@@ -91,7 +91,7 @@ export function AdminSubmissionsPanel({
 
   const logout = async () => {
     await createClient().auth.signOut();
-    window.location.href = "/admin/login";
+    window.location.href = "/admin";
   };
 
   const visible = subs.filter((s) => !s.hidden);

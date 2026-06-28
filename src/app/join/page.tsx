@@ -1,9 +1,9 @@
 import { JoinPageContent } from "@/components/join/JoinPageContent";
-import { DEFAULT_EVENT_SLUG, FALLBACK_MAJORS } from "@/lib/constants";
+import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = {
-  title: "Gửi vào cây — Cây Khóa 2026",
+  title: "Gửi & Xem Thần số học — Cây Khóa 2026",
 };
 
 async function getEventSettings(slug: string) {
@@ -19,7 +19,7 @@ async function getEventSettings(slug: string) {
 
     const { data: settings } = await admin
       .from("event_settings")
-      .select("majors, max_file_mb, policy_url")
+      .select("max_file_mb")
       .eq("event_id", event.id)
       .single();
 
@@ -38,9 +38,8 @@ export default async function JoinPage({
   const slug = eventParam ?? DEFAULT_EVENT_SLUG;
   const data = await getEventSettings(slug);
 
-  const majors = (data?.settings?.majors as string[] | undefined) ?? FALLBACK_MAJORS;
+  const majors = [...EVENT_MAJORS];
   const maxFileMb = Number(data?.settings?.max_file_mb) || 5;
-  const policyUrl = data?.settings?.policy_url ?? "/privacy";
   const isLocked = data?.event?.status === "locked";
 
   return (
@@ -48,7 +47,6 @@ export default async function JoinPage({
       majors={majors}
       eventSlug={slug}
       maxFileMb={maxFileMb}
-      policyUrl={policyUrl}
       isLocked={isLocked}
     />
   );

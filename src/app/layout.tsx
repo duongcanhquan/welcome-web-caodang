@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito, Outfit } from "next/font/google";
-import { PageBackground } from "@/components/motion/PageBackground";
+import { ConditionalPageBackground } from "@/components/motion/ConditionalPageBackground";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -35,7 +35,7 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${nunito.variable} ${outfit.variable} h-full`}>
       <body className="relative min-h-full flex flex-col antialiased">
-        <PageBackground />
+        <ConditionalPageBackground />
         {children}
       </body>
     </html>

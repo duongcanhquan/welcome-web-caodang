@@ -12,7 +12,7 @@ export default async function AdminSubmissionsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect("/admin/login");
+  if (!user) redirect("/admin");
   if (user.app_metadata?.role !== "admin") {
     return (
       <div className="flex flex-1 items-center justify-center p-6">

@@ -1,7 +1,8 @@
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
 import { generatePersonalization } from "@/lib/ai/deepseek";
-import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
+import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
+import { parseDobDdMmYyyy } from "@/lib/date/parse-dob";
 import { calculateNumerology, LIFE_PATH_CONTENT } from "@/lib/numerology";
 import { uploadSubmissionImages } from "@/lib/storage/upload";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,7 +24,6 @@ export interface SubmitPayload {
   dob: string;
   major: string;
   wish: string;
-  consent: boolean;
   eventSlug?: string;
 }
 
@@ -70,16 +70,33 @@ export async function handleSubmission(
   ip: string
 ): Promise<{ token: string; leafNumber: number; submissionId: string }> {
   const name = (formData.get("name") as string)?.trim();
-  const dob = formData.get("dob") as string;
+  const dobRaw = formData.get("dob") as string;
   const major = formData.get("major") as string;
   const wish = ((formData.get("wish") as string) ?? "").trim();
-  const consent = formData.get("consent") === "true";
   const eventSlug =
     ((formData.get("eventSlug") as string) ?? DEFAULT_EVENT_SLUG).trim();
   const file = formData.get("photo") as File | null;
 
-  if (!name || !dob || !major || !consent) {
-    throw new Error("Vui lòng điền đầy đủ thông tin và đồng ý điều khoản.");
+  if (!name || !dobRaw || !major) {
+    throw new Error("Vui lòng điền đầy đủ thông tin bắt buộc.");
+  }
+
+  let dob: string;
+  try {
+    if (dobRaw.includes("/")) {
+      dob = parseDobDdMmYyyy(dobRaw);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dobRaw)) {
+      dob = dobRaw;
+    } else {
+      throw new Error("Ngày sinh phải theo dạng dd/mm/yyyy");
+    }
+  } catch (err) {
+    throw err instanceof Error ? err : new Error("Ngày sinh không hợp lệ");
+  }
+
+  const allowedMajors = new Set<string>(EVENT_MAJORS);
+  if (!allowedMajors.has(major)) {
+    throw new Error("Ngành học không hợp lệ.");
   }
 
   if (!file || file.size === 0) {
@@ -106,7 +123,7 @@ export async function handleSubmission(
 
   const { data: settings } = await admin
     .from("event_settings")
-    .select("max_file_mb, majors")
+    .select("max_file_mb")
     .eq("event_id", event.id)
     .single();
 

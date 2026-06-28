@@ -10,14 +10,19 @@ export const DEFAULT_EVENT_SLUG = "k2026";
 /** ID event seed (migration) — dùng khi cần tham chiếu cố định */
 export const SEED_EVENT_ID = "a0000000-0000-4000-8000-000000000001";
 
-/** Fallback khi chưa kết nối Supabase */
-export const FALLBACK_MAJORS = [
-  "Công nghệ thông tin",
-  "Thiết kế đồ họa",
+/** Danh sách ngành — Cao đẳng Việt Mỹ Khóa 2026 */
+export const EVENT_MAJORS = [
+  "Quản trị doanh nghiệp",
+  "Tiếng Anh",
+  "Tiếng Hàn",
+  "Tiếng Trung",
+  "Tiếng Nhật",
+  "Ứng Dụng Phần mềm",
+  "Công nghệ ô tô",
+  "Chăm sóc sắc đẹp",
   "Marketing",
-  "Du lịch",
-  "Ngôn ngữ Anh",
-  "Kế toán",
-  "Điều dưỡng",
-  "Khác",
-];
+  "Thiết kế đồ họa",
+] as const;
+
+/** @deprecated Dùng EVENT_MAJORS */
+export const FALLBACK_MAJORS = [...EVENT_MAJORS];

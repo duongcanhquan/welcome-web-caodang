@@ -62,7 +62,7 @@ export function AdminSecretsForm() {
   const logout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    window.location.href = "/admin/login";
+    window.location.href = "/admin";
   };
 
   return (

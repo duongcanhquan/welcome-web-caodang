@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { motion } from "motion/react";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
+import { MagicalSkyBackground } from "@/components/motion/MagicalSkyBackground";
 import { TreeCanvas } from "./TreeCanvas";
 import { LeafDetailCard } from "./LeafDetailCard";
 
@@ -45,62 +48,105 @@ export function ViewerTreeView({
     const q = search.trim().toLowerCase();
     if (!q) return;
 
-    const match = searchable.find((l) =>
-      l.name!.toLowerCase().includes(q)
-    );
+    const match = searchable.find((l) => l.name!.toLowerCase().includes(q));
 
     if (match) {
       setHighlightedId(match.id);
       setShowFirefly(true);
       setTimeout(() => setShowFirefly(false), 2500);
-      setTimeout(() => {
-        setSelectedLeaf(match);
-      }, 800);
+      setTimeout(() => setSelectedLeaf(match), 800);
     }
   }, [search, searchable]);
 
+  if (presentation) {
+    return (
+      <div className="relative h-screen overflow-hidden">
+        <TreeCanvas
+          layout={layout}
+          mode="view"
+          presentation
+          highlightedId={highlightedId}
+          onLeafClick={setSelectedLeaf}
+          className="h-full"
+        />
+        {selectedLeaf && (
+          <LeafDetailCard
+            leaf={selectedLeaf}
+            dob={selectedLeaf.submissionId ? dobMap[selectedLeaf.submissionId] : undefined}
+            onClose={() => setSelectedLeaf(null)}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex flex-col ${presentation ? "h-screen bg-[#0a1628]" : "min-h-screen"}`}>
-      {!presentation && (
-        <header className="sticky top-0 z-20 bg-background/95 px-4 py-4 backdrop-blur">
-          <h1 className="font-display text-center text-xl font-bold text-foreground">
-            Cây Khóa 2026 🌳
-          </h1>
-          <p className="mt-1 text-center text-sm text-ink-muted">
-            {layout.totalSubmissions} sinh viên · Gõ tên để tìm mình
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      <MagicalSkyBackground variant="tree" className="fixed inset-0 -z-10" />
+
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="sticky top-0 z-20 border-b border-white/20 bg-white/15 px-4 py-5 backdrop-blur-xl"
+      >
+        <div className="mx-auto max-w-lg text-center">
+          <motion.h1
+            className="font-display text-2xl font-bold text-white drop-shadow-lg sm:text-3xl"
+            animate={{
+              textShadow: [
+                "0 2px 20px rgba(255,209,92,0.4)",
+                "0 2px 30px rgba(61,190,139,0.5)",
+                "0 2px 20px rgba(255,209,92,0.4)",
+              ],
+            }}
+            transition={{ duration: 4, repeat: Infinity }}
+          >
+            ✨ Điều Kỳ Diệu — Cây Khóa 2026
+          </motion.h1>
+          <p className="mt-2 text-sm font-medium text-white/85">
+            {layout.totalSubmissions} sinh viên · Gõ tên để tìm lá của bạn
           </p>
-          <div className="mx-auto mt-3 flex max-w-md gap-2">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && findByName()}
-              placeholder="Nhập tên của bạn..."
-              className="flex-1 rounded-card border-2 border-peach/30 bg-surface px-4 py-3 focus:border-peach focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={findByName}
-              className="rounded-button bg-peach px-5 py-3 font-bold text-white"
-            >
-              Tìm
-            </button>
-          </div>
-        </header>
-      )}
+        </div>
+
+        <div className="mx-auto mt-4 flex max-w-md gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && findByName()}
+            placeholder="Nhập tên của bạn..."
+            className="flex-1 rounded-2xl border-2 border-white/30 bg-white/25 px-4 py-3 text-foreground placeholder:text-ink-muted backdrop-blur-md focus:border-honey focus:outline-none focus:ring-2 focus:ring-honey/30"
+          />
+          <motion.button
+            type="button"
+            onClick={findByName}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.97 }}
+            className="glow-border rounded-button bg-peach px-5 py-3 font-bold text-white shadow-sticker"
+          >
+            Tìm ✨
+          </motion.button>
+        </div>
+
+        <div className="mt-3 text-center">
+          <Link
+            href="/"
+            className="text-xs font-semibold text-white/70 underline-offset-2 hover:text-white hover:underline"
+          >
+            ← Về trang chủ
+          </Link>
+        </div>
+      </motion.header>
 
       <TreeCanvas
         layout={layout}
         mode="view"
-        presentation={presentation}
         highlightedId={highlightedId}
         onLeafClick={setSelectedLeaf}
-        className={`flex-1 ${presentation ? "h-full" : "min-h-[65vh]"}`}
+        className="min-h-[68vh] flex-1"
       />
 
-      {showFirefly && highlightedId && (
-        <FireflyOverlay />
-      )}
+      {showFirefly && highlightedId && <FireflyOverlay />}
 
       {selectedLeaf && (
         <LeafDetailCard
@@ -110,16 +156,19 @@ export function ViewerTreeView({
         />
       )}
 
-      {!presentation && (
-        <div className="fixed bottom-4 right-4">
-          <a
-            href="?present=1"
-            className="rounded-button bg-foreground px-4 py-2 text-sm font-semibold text-white shadow-soft"
-          >
-            Trình chiếu ✨
-          </a>
-        </div>
-      )}
+      <motion.div
+        className="fixed bottom-5 right-5 z-20"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.5 }}
+      >
+        <Link
+          href="?present=1"
+          className="glow-border inline-block rounded-button bg-brand-navy/90 px-5 py-2.5 text-sm font-bold text-white shadow-lg backdrop-blur-md"
+        >
+          Trình chiếu 🎬
+        </Link>
+      </motion.div>
     </div>
   );
 }
@@ -127,7 +176,14 @@ export function ViewerTreeView({
 function FireflyOverlay() {
   return (
     <div className="pointer-events-none fixed inset-0 z-30 flex items-center justify-center">
-      <span className="animate-firefly-travel text-4xl">✨</span>
+      <motion.span
+        className="text-5xl"
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: [0.5, 1.8, 1.2], opacity: [0, 1, 0] }}
+        transition={{ duration: 2, ease: "easeOut" }}
+      >
+        ✨
+      </motion.span>
     </div>
   );
 }

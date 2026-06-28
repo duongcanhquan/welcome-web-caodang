@@ -3,7 +3,7 @@ import { getTreeLayoutForEvent } from "@/lib/tree/get-layout";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 
-export const metadata = { title: "Xem cây — Cây Khóa 2026" };
+export const metadata = { title: "Xem điều kỳ diệu — Cây Khóa 2026" };
 
 export default async function ViewerPage({
   params,

@@ -8,7 +8,6 @@ interface JoinPageContentProps {
   majors: string[];
   eventSlug: string;
   maxFileMb: number;
-  policyUrl: string;
   isLocked: boolean;
 }
 
@@ -16,7 +15,6 @@ export function JoinPageContent({
   majors,
   eventSlug,
   maxFileMb,
-  policyUrl,
   isLocked,
 }: JoinPageContentProps) {
   return (
@@ -24,7 +22,7 @@ export function JoinPageContent({
       <Stagger className="mb-8 text-center">
         <StaggerItem>
           <motion.p
-            className="font-display text-sm font-semibold uppercase tracking-widest text-peach"
+            className="font-display text-sm font-semibold uppercase tracking-widest text-brand-navy/70"
             animate={{ letterSpacing: ["0.15em", "0.25em", "0.15em"] }}
             transition={{ duration: 4, repeat: Infinity }}
           >
@@ -33,12 +31,12 @@ export function JoinPageContent({
         </StaggerItem>
         <StaggerItem>
           <GradientText as="h1" className="font-display mt-1 text-3xl font-bold">
-            Gửi vào cây 🌿
+            Thần số học của bạn ✨
           </GradientText>
         </StaggerItem>
         <StaggerItem>
           <p className="mt-2 text-ink-muted">
-            Tải ảnh AI · điền thông tin · trở thành một chiếc lá
+            Gửi ảnh, tên và ngày sinh — xem kết quả thần số học ngay
           </p>
         </StaggerItem>
       </Stagger>
@@ -55,12 +53,7 @@ export function JoinPageContent({
         </FadeIn>
       ) : (
         <FadeIn delay={0.3}>
-          <JoinForm
-            majors={majors}
-            eventSlug={eventSlug}
-            maxFileMb={maxFileMb}
-            policyUrl={policyUrl}
-          />
+          <JoinForm majors={majors} eventSlug={eventSlug} maxFileMb={maxFileMb} />
         </FadeIn>
       )}
     </div>

@@ -1,5 +1,5 @@
 export { buildTreeLayout, layoutToMosaicLeaves } from "./build-layout";
-export { createTreeCrownMask, createHeartMask, scaleMaskToTarget, countOnCells } from "./mask";
+export { generatePhotoSlotsOnTree, FOLIAGE_CLUSTERS } from "./branch-slots";
 export { computeTargetSlots, placeLeavesNatural } from "./placement";
 export type {
   TreeLayout,

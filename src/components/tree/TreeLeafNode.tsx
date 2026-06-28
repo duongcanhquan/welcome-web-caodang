@@ -1,6 +1,5 @@
 "use client";
 
-import { HEART_CLIP_PATH, HEART_VIEWBOX } from "@/lib/tree";
 import type { TreeLeaf } from "@/lib/tree/types";
 
 interface TreeLeafNodeProps {
@@ -14,41 +13,86 @@ interface TreeLeafNodeProps {
   windSway?: boolean;
   swayDelay?: number;
   onClick?: (leaf: TreeLeaf) => void;
+  /** Ảnh tròn gắn trên tán cây (không phải hình trái tim) */
+  onBranch?: boolean;
 }
 
 export function TreeLeafNode({
   leaf,
   canvasW,
   canvasH,
-  baseSize = 48,
+  baseSize = 56,
   highlighted = false,
   isNew = false,
   presentation = false,
   windSway = false,
   swayDelay = 0,
   onClick,
+  onBranch = false,
 }: TreeLeafNodeProps) {
-  if (leaf.filler && !leaf.leafUrl) {
-    return (
-      <FillerLeaf
-        leaf={leaf}
-        canvasW={canvasW}
-        canvasH={canvasH}
-        baseSize={baseSize}
-        windSway={windSway}
-        swayDelay={swayDelay}
-      />
-    );
-  }
+  if (leaf.filler && !leaf.leafUrl) return null;
 
   const size = baseSize * leaf.scale;
   const left = leaf.x * canvasW - size / 2;
   const top = leaf.y * canvasH - size / 2;
   const clickable = !leaf.filler && Boolean(leaf.submissionId);
   const isFallen = leaf.fallen;
+  const swayClass = windSway || presentation ? "animate-leaf-wind" : "";
 
-  const swayClass =
-    windSway || presentation ? "animate-leaf-wind" : "";
+  if (onBranch && leaf.leafUrl) {
+    return (
+      <button
+        type="button"
+        disabled={!clickable}
+        onClick={() => clickable && onClick?.(leaf)}
+        className={`absolute origin-center transition-all duration-500 ${swayClass} ${
+          clickable ? "cursor-pointer hover:z-[25] hover:scale-110" : "pointer-events-none"
+        } ${isNew ? "animate-leaf-pop" : ""} ${
+          highlighted ? "z-[30] !scale-[1.3]" : "z-[10]"
+        }`}
+        style={{
+          left,
+          top,
+          width: size,
+          height: size,
+          ["--leaf-rot" as string]: `${leaf.rotation}deg`,
+          animationDelay: `${swayDelay}s`,
+        }}
+        aria-label={leaf.name ?? "Sinh viên"}
+      >
+        <div
+          className="relative h-full w-full"
+          style={{
+            transform: `rotate(${leaf.rotation}deg)`,
+            filter: highlighted
+              ? "drop-shadow(0 0 20px #FFD15C) drop-shadow(0 6px 12px rgba(0,0,0,0.45))"
+              : "drop-shadow(0 4px 10px rgba(0,0,0,0.4))",
+          }}
+        >
+          {/* Viền trắng + viền màu ngành — như ảnh ghim trên tán */}
+          <div
+            className="h-full w-full overflow-hidden rounded-full p-[3px]"
+            style={{
+              background: highlighted
+                ? "linear-gradient(135deg, #FFD15C, #FFAE3B)"
+                : `linear-gradient(135deg, #fff 0%, ${leaf.majorColor} 100%)`,
+              boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.9)",
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={leaf.leafUrl}
+              alt={leaf.name ?? ""}
+              className="h-full w-full rounded-full object-cover"
+            />
+          </div>
+          {leaf.blossom && (
+            <span className="absolute -right-0.5 -top-0.5 text-base">🌸</span>
+          )}
+        </div>
+      </button>
+    );
+  }
 
   return (
     <button
@@ -68,86 +112,22 @@ export function TreeLeafNode({
         ["--leaf-rot" as string]: `${leaf.rotation}deg`,
         animationDelay: `${swayDelay}s`,
         filter: highlighted
-          ? "drop-shadow(0 0 16px #FFD15C) drop-shadow(0 0 32px #FFAE3B) drop-shadow(0 4px 8px rgba(0,0,0,0.3))"
-          : isFallen
-            ? "drop-shadow(0 2px 4px rgba(26,48,32,0.25))"
-            : "drop-shadow(0 2px 5px rgba(26,48,32,0.4)) drop-shadow(0 0 8px rgba(61,190,139,0.15))",
+          ? "drop-shadow(0 0 16px #FFD15C)"
+          : "drop-shadow(0 3px 6px rgba(0,0,0,0.35))",
       }}
-      aria-label={leaf.name ?? "Lá trang trí"}
+      aria-label={leaf.name ?? "Lá"}
     >
       <div
-        className="h-full w-full"
+        className="h-full w-full overflow-hidden rounded-full ring-2 ring-white/80"
         style={{ transform: `rotate(${leaf.rotation}deg)` }}
       >
-        <svg viewBox={HEART_VIEWBOX} className="h-full w-full">
-          <defs>
-            <clipPath id={`heart-clip-${leaf.id}`}>
-              <path d={HEART_CLIP_PATH} />
-            </clipPath>
-          </defs>
-          {leaf.leafUrl ? (
-            <image
-              href={leaf.leafUrl}
-              width="24"
-              height="22"
-              clipPath={`url(#heart-clip-${leaf.id})`}
-              preserveAspectRatio="xMidYMid slice"
-            />
-          ) : (
-            <path d={HEART_CLIP_PATH} fill={leaf.majorColor} opacity={0.6} />
-          )}
-          <path
-            d={HEART_CLIP_PATH}
-            fill="none"
-            stroke={leaf.majorColor}
-            strokeWidth={0.6}
-            opacity={0.85}
-          />
-        </svg>
-        {leaf.blossom && (
-          <span className="absolute -right-1 -top-1 animate-float text-lg">🌸</span>
+        {leaf.leafUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={leaf.leafUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="h-full w-full rounded-full" style={{ background: leaf.majorColor }} />
         )}
       </div>
     </button>
-  );
-}
-
-function FillerLeaf({
-  leaf,
-  canvasW,
-  canvasH,
-  baseSize,
-  windSway,
-  swayDelay = 0,
-}: {
-  leaf: TreeLeaf;
-  canvasW: number;
-  canvasH: number;
-  baseSize: number;
-  windSway?: boolean;
-  swayDelay?: number;
-}) {
-  const size = baseSize * leaf.scale * 0.85;
-  const left = leaf.x * canvasW - size / 2;
-  const top = leaf.y * canvasH - size / 2;
-
-  return (
-    <div
-      className={`absolute pointer-events-none opacity-50 ${windSway ? "animate-leaf-wind" : ""}`}
-      style={{
-        left,
-        top,
-        width: size,
-        height: size,
-        ["--leaf-rot" as string]: `${leaf.rotation}deg`,
-        animationDelay: `${swayDelay}s`,
-      }}
-    >
-      <div style={{ transform: `rotate(${leaf.rotation}deg)` }}>
-        <svg viewBox={HEART_VIEWBOX} className="h-full w-full">
-          <path d={HEART_CLIP_PATH} fill={leaf.majorColor} opacity={0.35} />
-        </svg>
-      </div>
-    </div>
   );
 }

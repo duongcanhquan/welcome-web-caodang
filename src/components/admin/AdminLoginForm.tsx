@@ -2,19 +2,10 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
-import { hasSupabasePublicEnv } from "@/lib/config/env";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedButton, Stagger, StaggerItem } from "@/components/motion";
 
-const AUTH_ERRORS: Record<string, string> = {
-  "Invalid login credentials": "Email hoặc mật khẩu không đúng.",
-  "Email not confirmed": "Email chưa được xác nhận — liên hệ quản trị.",
-};
-
 export function AdminLoginForm() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,33 +16,35 @@ export function AdminLoginForm() {
     setLoading(true);
     setError(null);
 
-    if (!hasSupabasePublicEnv()) {
-      setError("Thiếu cấu hình Supabase trên server — kiểm tra biến môi trường.");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const payload = (await res.json()) as { error?: string; ok?: boolean };
+
+      if (!res.ok) {
+        setError(payload.error ?? "Đăng nhập thất bại.");
+        return;
+      }
+
+      const params = new URLSearchParams(window.location.search);
+      const next = params.get("next");
+      const dest =
+        next && next.startsWith("/admin") ? next : "/admin/submissions";
+
+      window.location.assign(dest);
+    } catch {
+      setError("Không kết nối được server. Thử lại sau vài giây.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const supabase = createClient();
-    const { data, error: authError } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
-      password,
-    });
-
-    if (authError) {
-      setError(AUTH_ERRORS[authError.message] ?? authError.message);
-      setLoading(false);
-      return;
-    }
-
-    if (data.user?.app_metadata?.role !== "admin") {
-      await supabase.auth.signOut();
-      setError("Tài khoản không có quyền admin. Chạy: node scripts/setup-admin.mjs");
-      setLoading(false);
-      return;
-    }
-
-    router.refresh();
-    router.push("/admin/submissions");
   };
 
   return (

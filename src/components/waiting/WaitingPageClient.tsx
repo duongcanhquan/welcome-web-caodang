@@ -2,11 +2,17 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { NumerologyWaitingScreen } from "@/components/waiting/NumerologyWaitingScreen";
 import { NumerologyCard } from "@/components/numerology/NumerologyCard";
 import { FlappyBirdGame } from "@/components/game/FlappyBirdGame";
 import { Leaderboard } from "@/components/game/Leaderboard";
 import { TreeCanvas } from "@/components/tree/TreeCanvas";
-import { AnimatedButton, FadeIn, GradientText, Stagger, StaggerItem } from "@/components/motion";
+import {
+  AnimatedButton,
+  MagicalSkyBackground,
+  Stagger,
+  StaggerItem,
+} from "@/components/motion";
 import type { TreeLayout } from "@/lib/tree/types";
 import type { LifePathContent } from "@/lib/numerology";
 import type { NumerologyResult } from "@/lib/numerology";
@@ -35,33 +41,43 @@ interface MeData {
 interface WaitingPageProps {
   token: string;
   initialLeafNumber?: number;
+  isNewSubmission?: boolean;
 }
 
 const TOASTS = [
-  "Sắp nở hoa rồi, đừng đi đâu nhé 👀",
-  "Cây đang lớn từng chiếc lá 🌿",
+  "Lá của bạn đã trên cây — thử tìm tên mình nhé 🌿",
+  "Chia sẻ thần số học lên story ✨",
   "Thử chơi Flappy Lá xem ai bay cao nhất! 🍃",
-  "Chia sẻ thần số học lên story nhé ✨",
+  "Cây đang lớn từng chiếc lá — bạn là một phần của điều kỳ diệu",
 ];
 
-export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps) {
+export function WaitingPageClient({
+  token,
+  initialLeafNumber,
+  isNewSubmission = false,
+}: WaitingPageProps) {
   const [data, setData] = useState<MeData | null>(null);
   const [totalLeaves, setTotalLeaves] = useState(initialLeafNumber ?? 0);
   const [treeLayout, setTreeLayout] = useState<TreeLayout | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [fetchDone, setFetchDone] = useState(false);
+  const [minWaitDone, setMinWaitDone] = useState(!isNewSubmission);
+  const [revealNumerology, setRevealNumerology] = useState(!isNewSubmission);
   const [locked, setLocked] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [reveal, setReveal] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/me/${token}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      setFetchDone(true);
+      return;
+    }
     const json = (await res.json()) as MeData;
     setData(json);
     setTotalLeaves(json.totalLeaves);
     setLocked(json.submission.events.status === "locked");
-    setLoading(false);
+    setFetchDone(true);
 
     const slug = json.submission.events.slug;
     const treeRes = await fetch(`/api/tree/${slug}`);
@@ -75,7 +91,6 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
     load();
   }, [load]);
 
-  // Realtime: cập nhật số lá + reload tree
   useEffect(() => {
     if (!data?.submission.events.id) return;
 
@@ -87,7 +102,12 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
       .channel(`waiting-${eventId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "submissions", filter: `event_id=eq.${eventId}` },
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "submissions",
+          filter: `event_id=eq.${eventId}`,
+        },
         async () => {
           setTotalLeaves((n) => n + 1);
           const treeRes = await fetch(`/api/tree/${slug}`);
@@ -99,7 +119,12 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "events", filter: `id=eq.${eventId}` },
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "events",
+          filter: `id=eq.${eventId}`,
+        },
         (payload) => {
           const row = payload.new as { status: string };
           if (row.status === "locked") {
@@ -115,7 +140,6 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
     };
   }, [data?.submission.events.id, data?.submission.events.slug]);
 
-  // Đếm ngược khi admin chốt
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
@@ -127,32 +151,45 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
   }, [countdown]);
 
   useEffect(() => {
+    if (!revealNumerology) return;
     const interval = setInterval(() => {
       setToast(TOASTS[Math.floor(Math.random() * TOASTS.length)] ?? "");
       setTimeout(() => setToast(null), 4000);
-    }, 12000);
+    }, 14000);
     return () => clearInterval(interval);
-  }, []);
+  }, [revealNumerology]);
 
-  if (loading) {
+  useEffect(() => {
+    if (minWaitDone && fetchDone && isNewSubmission) {
+      setRevealNumerology(true);
+    }
+  }, [minWaitDone, fetchDone, isNewSubmission]);
+
+  if (isNewSubmission && (!minWaitDone || !fetchDone)) {
     return (
-      <div className="flex flex-1 items-center justify-center">
-        <motion.p
-          className="text-ink-muted"
-          animate={{ opacity: [0.4, 1, 0.4] }}
-          transition={{ duration: 1.5, repeat: Infinity }}
-        >
-          Đang tải lá của bạn… 🌿
-        </motion.p>
-      </div>
+      <NumerologyWaitingScreen
+        name={data?.submission.name}
+        minDurationMs={5000}
+        onComplete={() => setMinWaitDone(true)}
+      />
+    );
+  }
+
+  if (!isNewSubmission && !fetchDone) {
+    return (
+      <NumerologyWaitingScreen
+        minDurationMs={3000}
+        onComplete={() => setFetchDone(true)}
+      />
     );
   }
 
   if (!data) {
     return (
-      <FadeIn className="flex flex-1 flex-col items-center justify-center gap-4 px-6">
-        <p className="text-lg text-ink-muted">Không tìm thấy lá của bạn</p>
-      </FadeIn>
+      <div className="relative flex min-h-screen items-center justify-center px-6">
+        <MagicalSkyBackground variant="twilight" className="fixed inset-0 -z-10" />
+        <p className="text-lg text-white/80">Không tìm thấy lá của bạn</p>
+      </div>
     );
   }
 
@@ -161,7 +198,9 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
   const slotNum = (submission.slot_index ?? 0) + 1;
 
   return (
-    <div className="flex flex-1 flex-col gap-8 px-4 py-8 pb-16">
+    <div className="relative min-h-screen overflow-hidden">
+      <MagicalSkyBackground variant="twilight" className="fixed inset-0 -z-10" />
+
       <AnimatePresence>
         {countdown !== null && countdown > 0 && (
           <motion.div
@@ -203,87 +242,62 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
               variant="primary"
               className="mt-6"
             >
-              Xem cả cây 🌳
+              Xem điều kỳ diệu ✨
             </AnimatedButton>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <Stagger className="text-center">
-        <StaggerItem>
-          <motion.p
-            className="font-display text-sm font-semibold uppercase tracking-widest text-peach"
-            animate={{ opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            Bạn là chiếc lá thứ {slotNum}
-          </motion.p>
-        </StaggerItem>
-        <StaggerItem>
-          <GradientText as="h1" className="font-display mt-1 text-2xl font-bold">
-            Chào {submission.name}! 🌿
-          </GradientText>
-        </StaggerItem>
-        <StaggerItem>
-          <p className="mt-2 text-ink-muted">
-            Cây đã có{" "}
-            <motion.strong
-              className="text-sprout"
-              key={totalLeaves}
-              initial={{ scale: 1.4, color: "var(--peach)" }}
-              animate={{ scale: 1, color: "var(--sprout)" }}
-              transition={{ type: "spring", stiffness: 400 }}
+      <div className="relative z-10 mx-auto flex max-w-lg flex-col gap-8 px-4 py-8 pb-20">
+        <Stagger className="text-center">
+          <StaggerItem>
+            <motion.p
+              className="font-display text-xs font-bold uppercase tracking-[0.25em] text-honey"
+              animate={{ opacity: [0.7, 1, 0.7] }}
+              transition={{ duration: 3, repeat: Infinity }}
             >
-              {totalLeaves}
-            </motion.strong>{" "}
-            lá · lá của bạn đang ở đó
-          </p>
-        </StaggerItem>
-      </Stagger>
+              Bạn là chiếc lá thứ {slotNum}
+            </motion.p>
+          </StaggerItem>
+          <StaggerItem>
+            <h1 className="font-display mt-2 text-3xl font-bold text-white drop-shadow-lg">
+              Chào {submission.name}! 🌿
+            </h1>
+          </StaggerItem>
+          <StaggerItem>
+            <p className="mt-2 text-white/75">
+              Cây đã có{" "}
+              <motion.strong
+                key={totalLeaves}
+                className="text-honey"
+                initial={{ scale: 1.4 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+              >
+                {totalLeaves}
+              </motion.strong>{" "}
+              lá
+            </p>
+          </StaggerItem>
+        </Stagger>
 
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            className="fixed bottom-6 left-1/2 z-40 rounded-button bg-foreground px-5 py-3 text-sm text-white shadow-soft"
-            style={{ x: "-50%" }}
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-          >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Cây thu nhỏ trực tiếp */}
-      {treeLayout && (
-        <FadeIn delay={0.2}>
-          <section>
-            <h2 className="font-display mb-3 text-lg font-bold text-foreground">
-              Cây đang lớn 🌳
-            </h2>
+        <AnimatePresence>
+          {toast && (
             <motion.div
-              className="h-48 rounded-card overflow-hidden"
-              whileHover={{ scale: 1.01 }}
-              transition={{ type: "spring", stiffness: 300 }}
+              className="fixed bottom-6 left-1/2 z-40 max-w-sm rounded-button border border-white/20 bg-brand-navy/90 px-5 py-3 text-center text-sm text-white shadow-lg backdrop-blur-md"
+              style={{ x: "-50%" }}
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
             >
-              <TreeCanvas
-                layout={treeLayout}
-                mode="mini"
-                highlightedId={submission.id}
-                newLeafId={null}
-                className="h-48 rounded-card"
-              />
+              {toast}
             </motion.div>
-          </section>
-        </FadeIn>
-      )}
+          )}
+        </AnimatePresence>
 
-      {numerology?.content && (
-        <FadeIn delay={0.3}>
+        {numerology?.content && revealNumerology && (
           <section>
-            <h2 className="font-display mb-4 text-lg font-bold text-foreground">
+            <h2 className="font-display mb-4 text-center text-lg font-bold text-white">
               Thần số học của bạn ✨
             </h2>
             <NumerologyCard
@@ -295,14 +309,32 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
               wishComment={insight?.ai_personalization?.wishComment}
               funFact={insight?.ai_personalization?.funFact}
               majorMatch={getMajorMatchMessage(numerology.lifePath, submission.major)}
+              reveal={isNewSubmission}
             />
           </section>
-        </FadeIn>
-      )}
+        )}
 
-      <FadeIn delay={0.4}>
-        <section>
-          <h2 className="font-display mb-4 text-lg font-bold text-foreground">
+        {treeLayout && (
+          <section>
+            <h2 className="font-display mb-3 text-lg font-bold text-white">
+              Cây đang lớn 🌳
+            </h2>
+            <motion.div
+              className="h-52 overflow-hidden rounded-2xl border border-white/20 shadow-xl"
+              whileHover={{ scale: 1.01 }}
+            >
+              <TreeCanvas
+                layout={treeLayout}
+                mode="mini"
+                highlightedId={submission.id}
+                className="h-52"
+              />
+            </motion.div>
+          </section>
+        )}
+
+        <section className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+          <h2 className="font-display mb-4 text-lg font-bold text-white">
             Flappy Lá 🍃
           </h2>
           <FlappyBirdGame
@@ -311,26 +343,24 @@ export function WaitingPageClient({ token, initialLeafNumber }: WaitingPageProps
             playerName={submission.name}
           />
         </section>
-      </FadeIn>
 
-      <FadeIn delay={0.5}>
-        <section>
-          <h2 className="font-display mb-4 text-lg font-bold text-foreground">
+        <section className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-md">
+          <h2 className="font-display mb-4 text-lg font-bold text-white">
             Bảng xếp hạng 🏆
           </h2>
           <Leaderboard eventId={submission.events.id} />
         </section>
-      </FadeIn>
 
-      {(locked || submission.events.status === "locked") && !reveal && (
-        <AnimatedButton
-          href={`/v/${submission.events.slug}?highlight=${submission.id}`}
-          variant="sprout"
-          className="text-center"
-        >
-          Xem cả cây 🌳
-        </AnimatedButton>
-      )}
+        {(locked || submission.events.status === "locked") && !reveal && (
+          <AnimatedButton
+            href={`/v/${submission.events.slug}?highlight=${submission.id}`}
+            variant="sprout"
+            className="w-full text-center"
+          >
+            Xem điều kỳ diệu ✨
+          </AnimatedButton>
+        )}
+      </div>
     </div>
   );
 }

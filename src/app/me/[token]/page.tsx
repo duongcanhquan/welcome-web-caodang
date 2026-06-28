@@ -1,7 +1,7 @@
 import { WaitingPageClient } from "@/components/waiting/WaitingPageClient";
 
 export const metadata = {
-  title: "Chờ lá nở — Cây Khóa 2026",
+  title: "Thần số học của bạn — Cây Khóa 2026",
 };
 
 export default async function MePage({
@@ -9,11 +9,17 @@ export default async function MePage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ leaf?: string }>;
+  searchParams: Promise<{ leaf?: string; new?: string }>;
 }) {
   const { token } = await params;
-  const { leaf } = await searchParams;
+  const { leaf, new: isNew } = await searchParams;
   const leafNumber = leaf ? parseInt(leaf, 10) : undefined;
 
-  return <WaitingPageClient token={token} initialLeafNumber={leafNumber} />;
+  return (
+    <WaitingPageClient
+      token={token}
+      initialLeafNumber={leafNumber}
+      isNewSubmission={isNew === "1"}
+    />
+  );
 }

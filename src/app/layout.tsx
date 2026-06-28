@@ -16,9 +16,9 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Cây Khóa 2026 — Việt Mỹ College",
+  title: "WELCOME NEW LYONS — Việt Mỹ College",
   description:
-    "Mỗi sinh viên là một chiếc lá — cùng nhau làm trường nở rộ. Trạm công nghệ ngày orientation Cao đẳng Việt Mỹ.",
+    "Orientation Cao đẳng Việt Mỹ — Gửi ảnh, nhận bất ngờ và xem thần số học của bạn.",
 };
 
 export const viewport: Viewport = {

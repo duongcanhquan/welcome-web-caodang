@@ -36,7 +36,7 @@ export function JoinPageContent({
         </StaggerItem>
         <StaggerItem>
           <p className="mt-2 text-ink-muted">
-            Gửi ảnh, tên và ngày sinh — xem kết quả thần số học ngay
+            Gửi ảnh — nhận bất ngờ và xem thần số học của bạn ngay
           </p>
         </StaggerItem>
       </Stagger>

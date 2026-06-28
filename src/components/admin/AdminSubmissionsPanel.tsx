@@ -112,7 +112,8 @@ export function AdminSubmissionsPanel({
             </div>
             <div className="flex flex-wrap gap-2">
               {[
-                { href: "/admin/settings", label: "Cài đặt AI" },
+                { href: "/admin/settings", label: "Cài đặt" },
+                { href: "/demo/tree?present=1", label: "Demo cây", external: true },
                 { href: `/live/${eventSlug}`, label: "Màn LIVE", external: true },
                 { href: `/v/${eventSlug}`, label: "Màn XEM", external: true },
               ].map((link) => (

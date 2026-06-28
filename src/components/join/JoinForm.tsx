@@ -80,7 +80,7 @@ export function JoinForm({
           colors: ["#FF6FA5", "#3DBE8B", "#FFD15C", "#FFAE3B"],
         });
 
-        router.push(`/me/${data.token}?leaf=${data.leafNumber}`);
+        router.push(`/me/${data.token}?leaf=${data.leafNumber}&new=1`);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi không xác định");
       } finally {
@@ -98,21 +98,21 @@ export function JoinForm({
             <motion.button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="relative flex h-36 w-36 items-center justify-center overflow-hidden rounded-full border-4 border-dashed border-peach/40 bg-surface-warm shadow-soft"
-              whileHover={{ scale: 1.05, borderColor: "var(--peach)" }}
+              className="group relative flex h-40 w-40 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-4 border-peach bg-white shadow-[0_8px_32px_rgb(255_111_165_/_30%)]"
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               animate={
                 preview
                   ? {}
                   : {
                       boxShadow: [
-                        "0 4px 24px rgb(255 111 165 / 10%)",
                         "0 8px 32px rgb(255 111 165 / 25%)",
-                        "0 4px 24px rgb(255 111 165 / 10%)",
+                        "0 12px 40px rgb(61 190 139 / 35%)",
+                        "0 8px 32px rgb(255 111 165 / 25%)",
                       ],
                     }
               }
-              transition={{ duration: 2, repeat: preview ? 0 : Infinity }}
+              transition={{ duration: 2.5, repeat: preview ? 0 : Infinity }}
             >
               {preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -125,13 +125,16 @@ export function JoinForm({
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="text-center text-sm text-ink-muted">
-                  📸 Chọn ảnh
-                  <br />
-                  <span className="text-xs text-coral">* Bắt buộc</span>
-                  <br />
-                  <span className="text-xs">(tối đa {maxFileMb}MB)</span>
-                </span>
+                <>
+                  <span className="text-3xl" aria-hidden>
+                    📸
+                  </span>
+                  <span className="px-3 text-center text-sm font-bold leading-tight text-brand-navy">
+                    Chọn ảnh
+                  </span>
+                  <span className="text-xs font-semibold text-peach">Bắt buộc</span>
+                  <span className="text-[11px] text-ink-muted">tối đa {maxFileMb}MB</span>
+                </>
               )}
             </motion.button>
             <input
@@ -211,10 +214,11 @@ export function JoinForm({
         <StaggerItem>
           <AnimatedButton
             type="submit"
+            variant="sprout"
             disabled={loading}
-            className="w-full disabled:opacity-60"
+            className="w-full px-4 py-4 text-base leading-snug disabled:opacity-60 sm:text-lg"
           >
-            {loading ? "Đang xử lý… ✨" : "Gửi & Xem Thần số học ✨"}
+            {loading ? "Đang xử lý… ✨" : "Gửi ảnh — Nhận Bất ngờ & Xem thần số học ✨"}
           </AnimatedButton>
         </StaggerItem>
       </Stagger>

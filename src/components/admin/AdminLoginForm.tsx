@@ -2,11 +2,19 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { hasSupabasePublicEnv } from "@/lib/config/env";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedButton, Stagger, StaggerItem } from "@/components/motion";
 
+const AUTH_ERRORS: Record<string, string> = {
+  "Invalid login credentials": "Email hoặc mật khẩu không đúng.",
+  "Email not confirmed": "Email chưa được xác nhận — liên hệ quản trị.",
+};
+
 export function AdminLoginForm() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,19 +25,33 @@ export function AdminLoginForm() {
     setLoading(true);
     setError(null);
 
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) {
-      setError(authError.message);
+    if (!hasSupabasePublicEnv()) {
+      setError("Thiếu cấu hình Supabase trên server — kiểm tra biến môi trường.");
       setLoading(false);
       return;
     }
 
-    window.location.href = "/admin/submissions";
+    const supabase = createClient();
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+
+    if (authError) {
+      setError(AUTH_ERRORS[authError.message] ?? authError.message);
+      setLoading(false);
+      return;
+    }
+
+    if (data.user?.app_metadata?.role !== "admin") {
+      await supabase.auth.signOut();
+      setError("Tài khoản không có quyền admin. Chạy: node scripts/setup-admin.mjs");
+      setLoading(false);
+      return;
+    }
+
+    router.refresh();
+    router.push("/admin/submissions");
   };
 
   return (

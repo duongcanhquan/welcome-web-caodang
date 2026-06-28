@@ -15,7 +15,36 @@ import {
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 import { PromptPanel } from "./PromptPanel";
 
-export function HomePageClient() {
+const RAINBOW = ["#FF6FA5", "#FFAE3B", "#FFD15C", "#3DBE8B", "#5B8DEF", "#FF6B5A"];
+
+function RainbowText({ text }: { text: string }) {
+  return (
+    <span className="mt-2 block" aria-label={text}>
+      {text.split("").map((char, i) => (
+        <motion.span
+          key={`${char}-${i}`}
+          className="inline-block"
+          style={{ color: RAINBOW[i % RAINBOW.length] }}
+          animate={{ y: [0, -4, 0] }}
+          transition={{
+            duration: 2.5,
+            repeat: Infinity,
+            delay: i * 0.08,
+            ease: "easeInOut",
+          }}
+        >
+          {char === " " ? "\u00A0" : char}
+        </motion.span>
+      ))}
+    </span>
+  );
+}
+
+interface HomePageClientProps {
+  treeReady?: boolean;
+}
+
+export function HomePageClient({ treeReady = false }: HomePageClientProps) {
   const [promptOpen, setPromptOpen] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0.85]);
@@ -26,7 +55,6 @@ export function HomePageClient() {
       <div className="relative flex min-h-screen flex-col overflow-hidden">
         <MagicalSkyBackground variant="home" parallax className="fixed inset-0 -z-10" />
 
-        {/* Floating light orbs */}
         <div aria-hidden className="pointer-events-none fixed inset-0 -z-[5] overflow-hidden">
           {[
             { x: "10%", y: "20%", color: "var(--peach)", size: 120 },
@@ -86,42 +114,39 @@ export function HomePageClient() {
             <StaggerItem>
               <motion.span
                 className="inline-block rounded-full border border-white/40 bg-white/25 px-4 py-1.5 font-display text-xs font-bold uppercase tracking-[0.25em] text-brand-navy shadow-lg backdrop-blur-md"
-                animate={{ boxShadow: ["0 4px 20px rgb(255 255 255 / 30%)", "0 8px 40px rgb(255 209 92 / 40%)", "0 4px 20px rgb(255 255 255 / 30%)"] }}
+                animate={{
+                  boxShadow: [
+                    "0 4px 20px rgb(255 255 255 / 30%)",
+                    "0 8px 40px rgb(255 209 92 / 40%)",
+                    "0 4px 20px rgb(255 255 255 / 30%)",
+                  ],
+                }}
                 transition={{ duration: 3, repeat: Infinity }}
               >
-                ✨ Orientation Khóa 2026
+                ✨ Orientation · Việt Mỹ College
               </motion.span>
             </StaggerItem>
 
             <StaggerItem>
               <h1 className="font-display mt-5 text-5xl font-bold leading-[1.05] text-white drop-shadow-[0_4px_24px_rgb(13_61_107_/_50%)] sm:text-6xl lg:text-7xl">
-                Cây Khóa
-                <motion.span
-                  className="mt-2 block bg-gradient-to-r from-honey via-white to-sprout bg-clip-text text-transparent"
-                  animate={{ backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] }}
-                  transition={{ duration: 5, repeat: Infinity }}
-                  style={{ backgroundSize: "200% 200%" }}
-                >
-                  2026
-                </motion.span>
+                WELCOME
+                <RainbowText text="NEW LYONS" />
               </h1>
             </StaggerItem>
 
             <StaggerItem>
-              <p className="mx-auto mt-5 max-w-md text-lg font-medium leading-relaxed text-white/90 drop-shadow-md lg:mx-0">
-                Mỗi sinh viên là một chiếc lá — cùng nhau làm trường nở rộ 🌿
-              </p>
-            </StaggerItem>
-
-            <StaggerItem>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
-                <AnimatedButton href="/join" className="glow-border shadow-sticker">
-                  Gửi & Xem Thần số học
+                <AnimatedButton
+                  href="/join"
+                  variant="sprout"
+                  className="max-w-full px-6 py-4 text-center text-base leading-snug shadow-sticker ring-2 ring-white/40 sm:text-lg"
+                >
+                  Gửi ảnh — Nhận Bất ngờ & Xem thần số học
                 </AnimatedButton>
                 <AnimatedButton
                   type="button"
                   variant="secondary"
-                  className="border-white/50 bg-white/30 text-brand-navy backdrop-blur-md"
+                  className="border-2 border-white/80 bg-white px-6 py-3.5 text-base font-bold text-brand-navy shadow-lg"
                   onClick={() => setPromptOpen(true)}
                 >
                   Prompt ảnh
@@ -129,28 +154,18 @@ export function HomePageClient() {
               </div>
             </StaggerItem>
 
-            <StaggerItem>
-              <p className="mt-4 text-sm text-white/75">
-                Quét QR tại trạm công nghệ để tham gia
-              </p>
-            </StaggerItem>
-
-            <StaggerItem>
-              <div className="mt-6 flex flex-wrap justify-center gap-4 lg:justify-start">
-                <Link
-                  href={`/live/${DEFAULT_EVENT_SLUG}`}
-                  className="rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur-md transition hover:bg-white/35"
-                >
-                  🎬 Màn LIVE
-                </Link>
-                <Link
-                  href={`/v/${DEFAULT_EVENT_SLUG}`}
-                  className="rounded-full bg-white/20 px-4 py-2 text-sm font-bold text-white backdrop-blur-md transition hover:bg-white/35"
-                >
-                  ✨ Xem điều kỳ diệu
-                </Link>
-              </div>
-            </StaggerItem>
+            {treeReady && (
+              <StaggerItem>
+                <div className="mt-6 flex flex-wrap justify-center lg:justify-start">
+                  <Link
+                    href={`/v/${DEFAULT_EVENT_SLUG}`}
+                    className="rounded-full bg-white/25 px-5 py-2.5 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-white/40"
+                  >
+                    ✨ Xem điều kỳ diệu
+                  </Link>
+                </div>
+              </StaggerItem>
+            )}
           </Stagger>
 
           <ScrollReveal className="relative flex flex-1 items-center justify-center lg:justify-end">

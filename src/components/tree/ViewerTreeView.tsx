@@ -14,6 +14,7 @@ interface ViewerTreeViewProps {
   presentation?: boolean;
   highlightId?: string | null;
   dobMap?: Record<string, string>;
+  demoBanner?: boolean;
 }
 
 export function ViewerTreeView({
@@ -21,6 +22,7 @@ export function ViewerTreeView({
   presentation = false,
   highlightId = null,
   dobMap = {},
+  demoBanner = false,
 }: ViewerTreeViewProps) {
   const [search, setSearch] = useState("");
   const [highlightedId, setHighlightedId] = useState<string | null>(highlightId);
@@ -83,6 +85,16 @@ export function ViewerTreeView({
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <MagicalSkyBackground variant="tree" className="fixed inset-0 -z-10" />
+
+      {demoBanner && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative z-30 border-b border-honey/30 bg-honey/20 px-4 py-2 text-center text-sm font-semibold text-brand-navy backdrop-blur-md"
+        >
+          🎬 Demo xem trước — {layout.totalSubmissions} lá mẫu · Không phải dữ liệu thật
+        </motion.div>
+      )}
 
       <motion.header
         initial={{ opacity: 0, y: -20 }}

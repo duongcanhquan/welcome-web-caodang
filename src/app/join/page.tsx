@@ -3,7 +3,7 @@ import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const metadata = {
-  title: "Gửi & Xem Thần số học — Cây Khóa 2026",
+  title: "Gửi ảnh — Nhận Bất ngờ & Xem thần số học — WELCOME NEW LYONS",
 };
 
 async function getEventSettings(slug: string) {

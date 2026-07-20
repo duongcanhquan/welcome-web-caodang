@@ -12,20 +12,24 @@ export interface ProcessedImages {
   photoKey: string;
 }
 
-/** Resize ảnh: lá nhỏ ~256px WebP + bản vừa ~800px cho thẻ chi tiết */
+/**
+ * Resize server (Sharp): 2 bản WebP nhỏ gọn.
+ * - leaf: 220×220 cover — gắn trên tán cây
+ * - photo: max 640px — thẻ thần số / chi tiết
+ */
 export async function processSubmissionImages(
   buffer: Buffer
 ): Promise<{ leaf: Buffer; photo: Buffer }> {
   const leaf = await sharp(buffer)
     .rotate()
-    .resize(256, 256, { fit: "cover", position: "attention" })
-    .webp({ quality: 80 })
+    .resize(220, 220, { fit: "cover", position: "attention" })
+    .webp({ quality: 72, effort: 4 })
     .toBuffer();
 
   const photo = await sharp(buffer)
     .rotate()
-    .resize(800, 800, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 85 })
+    .resize(640, 640, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 78, effort: 4 })
     .toBuffer();
 
   return { leaf, photo };

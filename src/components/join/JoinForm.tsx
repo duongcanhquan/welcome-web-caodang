@@ -4,7 +4,12 @@ import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import confetti from "canvas-confetti";
 import { motion, AnimatePresence } from "motion/react";
-import { resizeImageClient, saveSubmissionToken } from "@/lib/image/client-resize";
+import {
+  formatBytes,
+  resizeImageClientDetailed,
+  saveSubmissionToken,
+  type ResizeResult,
+} from "@/lib/image/client-resize";
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 import { formatDobInput, parseDobDdMmYyyy } from "@/lib/date/parse-dob";
 import { AnimatedButton, Stagger, StaggerItem } from "@/components/motion";
@@ -23,14 +28,39 @@ export function JoinForm({
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [compressed, setCompressed] = useState<ResizeResult | null>(null);
+  const [compressing, setCompressing] = useState(false);
   const [dob, setDob] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const onPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPreview(URL.createObjectURL(file));
+
+    setError(null);
+    setCompressed(null);
+
+    const maxBytes = maxFileMb * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setError(`Ảnh gốc quá lớn (tối đa ${maxFileMb}MB trước khi nén).`);
+      e.target.value = "";
+      return;
+    }
+
+    setCompressing(true);
+    try {
+      const result = await resizeImageClientDetailed(file);
+      setCompressed(result);
+      if (preview) URL.revokeObjectURL(preview);
+      setPreview(URL.createObjectURL(result.blob));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không nén được ảnh");
+      e.target.value = "";
+      setPreview(null);
+    } finally {
+      setCompressing(false);
+    }
   };
 
   const onDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,16 +78,12 @@ export function JoinForm({
         const fd = new FormData(form);
         fd.set("eventSlug", eventSlug);
 
-        const file = fileRef.current?.files?.[0];
-        if (!file) throw new Error("Vui lòng chọn ảnh");
-
+        if (!compressed?.blob) throw new Error("Vui lòng chọn ảnh");
         if (!dob.trim()) throw new Error("Vui lòng nhập ngày sinh");
 
         const dobIso = parseDobDdMmYyyy(dob);
         fd.set("dob", dobIso);
-
-        const resized = await resizeImageClient(file);
-        fd.set("photo", new File([resized], "photo.jpg", { type: "image/jpeg" }));
+        fd.set("photo", new File([compressed.blob], "photo.jpg", { type: "image/jpeg" }));
 
         const res = await fetch("/api/submit", { method: "POST", body: fd });
         const data = (await res.json()) as {
@@ -87,8 +113,15 @@ export function JoinForm({
         setLoading(false);
       }
     },
-    [dob, eventSlug, router]
+    [compressed, dob, eventSlug, router]
   );
+
+  const savedPct =
+    compressed && compressed.originalBytes > 0
+      ? Math.round(
+          (1 - compressed.compressedBytes / compressed.originalBytes) * 100
+        )
+      : 0;
 
   return (
     <form onSubmit={onSubmit}>
@@ -98,9 +131,10 @@ export function JoinForm({
             <motion.button
               type="button"
               onClick={() => fileRef.current?.click()}
-              className="group relative flex h-40 w-40 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-4 border-peach bg-white shadow-[0_8px_32px_rgb(255_111_165_/_30%)]"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              disabled={compressing || loading}
+              className="group relative flex h-40 w-40 flex-col items-center justify-center gap-1 overflow-hidden rounded-full border-4 border-peach bg-white shadow-[0_8px_32px_rgb(255_111_165_/_30%)] disabled:opacity-70"
+              whileHover={{ scale: compressing ? 1 : 1.05 }}
+              whileTap={{ scale: compressing ? 1 : 0.95 }}
               animate={
                 preview
                   ? {}
@@ -114,7 +148,11 @@ export function JoinForm({
               }
               transition={{ duration: 2.5, repeat: preview ? 0 : Infinity }}
             >
-              {preview ? (
+              {compressing ? (
+                <span className="px-3 text-center text-sm font-bold text-brand-navy">
+                  Đang nén ảnh…
+                </span>
+              ) : preview ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <motion.img
                   initial={{ scale: 0.8, opacity: 0 }}
@@ -133,19 +171,30 @@ export function JoinForm({
                     Chọn ảnh
                   </span>
                   <span className="text-xs font-semibold text-peach">Bắt buộc</span>
-                  <span className="text-[11px] text-ink-muted">tối đa {maxFileMb}MB</span>
+                  <span className="text-[11px] text-ink-muted">
+                    tối đa {maxFileMb}MB · tự nén
+                  </span>
                 </>
               )}
             </motion.button>
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/*"
               capture="user"
               className="hidden"
               onChange={onPhotoChange}
-              required
             />
+            {compressed && (
+              <p className="text-center text-xs text-ink-muted">
+                Đã nén: {formatBytes(compressed.originalBytes)} →{" "}
+                <span className="font-semibold text-sprout">
+                  {formatBytes(compressed.compressedBytes)}
+                </span>
+                {savedPct > 0 ? ` (−${savedPct}%)` : ""} · {compressed.width}×
+                {compressed.height}
+              </p>
+            )}
           </div>
         </StaggerItem>
 
@@ -215,10 +264,14 @@ export function JoinForm({
           <AnimatedButton
             type="submit"
             variant="sprout"
-            disabled={loading}
+            disabled={loading || compressing || !compressed}
             className="w-full px-4 py-4 text-base leading-snug disabled:opacity-60 sm:text-lg"
           >
-            {loading ? "Đang xử lý… ✨" : "Gửi ảnh — Nhận Bất ngờ & Xem thần số học ✨"}
+            {loading
+              ? "Đang gửi…"
+              : compressing
+                ? "Đang nén ảnh…"
+                : "Gửi ảnh — Nhận Bất ngờ & Xem thần số học ✨"}
           </AnimatedButton>
         </StaggerItem>
       </Stagger>

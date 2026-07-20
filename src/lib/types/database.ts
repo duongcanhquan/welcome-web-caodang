@@ -10,6 +10,8 @@ export interface Event {
   slug: string;
   name: string;
   status: "collecting" | "locked";
+  /** Chỉ một event true — dùng cho join/home mặc định */
+  is_active: boolean;
   created_at: string;
 }
 
@@ -107,9 +109,10 @@ export interface Database {
     Tables: {
       events: {
         Row: Event;
-        Insert: Omit<Event, "id" | "created_at"> & {
+        Insert: Omit<Event, "id" | "created_at" | "is_active"> & {
           id?: string;
           created_at?: string;
+          is_active?: boolean;
         };
         Update: Partial<Event>;
       };

@@ -11,10 +11,18 @@ import { AdminModerationGrid } from "./AdminModerationGrid";
 import { AdminSecretsForm } from "./AdminSecretsForm";
 import { AdminLockTree } from "./AdminLockTree";
 
-export type AdminTab = "tong-quan" | "danh-sach" | "kiem-duyet" | "cai-dat";
+import { AdminEventsPanel } from "./AdminEventsPanel";
+
+export type AdminTab =
+  | "tong-quan"
+  | "cay"
+  | "danh-sach"
+  | "kiem-duyet"
+  | "cai-dat";
 
 const TABS: { id: AdminTab; label: string; icon: string }[] = [
   { id: "tong-quan", label: "Tổng quan", icon: "📊" },
+  { id: "cay", label: "Cây", icon: "🌲" },
   { id: "danh-sach", label: "Đã nộp", icon: "📋" },
   { id: "kiem-duyet", label: "Kiểm duyệt", icon: "🖼️" },
   { id: "cai-dat", label: "Cài đặt AI", icon: "⚙️" },
@@ -40,7 +48,9 @@ export function AdminDashboard({
     tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "tong-quan";
 
   const setTab = (tab: AdminTab) => {
-    router.push(`/admin/submissions?tab=${tab}`, { scroll: false });
+    const q = new URLSearchParams(searchParams.toString());
+    q.set("tab", tab);
+    router.push(`/admin/submissions?${q.toString()}`, { scroll: false });
   };
 
   const logout = async () => {
@@ -65,6 +75,7 @@ export function AdminDashboard({
             </GradientText>
             <p className="text-xs text-ink-muted sm:text-sm">
               {snapshot?.name ?? "Sự kiện"} ·{" "}
+              <code className="text-peach">{eventSlug}</code> ·{" "}
               {eventStatus === "locked" ? "🔒 Đã chốt cây" : "🌱 Đang thu thập"}
             </p>
           </div>
@@ -123,6 +134,8 @@ export function AdminDashboard({
           )}
         </div>
       )}
+
+      {activeTab === "cay" && <AdminEventsPanel currentEventId={eventId} />}
 
       {activeTab === "danh-sach" && (
         <AdminSubmissionsList eventId={eventId} eventSlug={eventSlug} />

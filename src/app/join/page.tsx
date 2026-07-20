@@ -1,6 +1,7 @@
 import { JoinPageContent } from "@/components/join/JoinPageContent";
 import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getActiveEvent } from "@/lib/events/active";
 
 export const metadata = {
   title: "Gửi ảnh — Nhận Bất ngờ & Xem thần số học — WELCOME NEW LYONS",
@@ -35,7 +36,8 @@ export default async function JoinPage({
   searchParams: Promise<{ event?: string }>;
 }) {
   const { event: eventParam } = await searchParams;
-  const slug = eventParam ?? DEFAULT_EVENT_SLUG;
+  const active = eventParam ? null : await getActiveEvent();
+  const slug = eventParam ?? active?.slug ?? DEFAULT_EVENT_SLUG;
   const data = await getEventSettings(slug);
 
   const majors = [...EVENT_MAJORS];

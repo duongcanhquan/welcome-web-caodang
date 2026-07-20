@@ -1,23 +1,25 @@
 import { HomePageClient } from "@/components/home/HomePageClient";
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { getActiveEvent } from "@/lib/events/active";
 
-async function getTreeReady(): Promise<boolean> {
+async function getHomeTreeState(): Promise<{
+  treeReady: boolean;
+  eventSlug: string;
+}> {
   try {
-    const admin = createAdminClient();
-    const { data } = await admin
-      .from("events")
-      .select("status")
-      .eq("slug", DEFAULT_EVENT_SLUG)
-      .single();
-    return data?.status === "locked";
+    const active = await getActiveEvent();
+    const slug = active?.slug ?? DEFAULT_EVENT_SLUG;
+    return {
+      treeReady: active?.status === "locked",
+      eventSlug: slug,
+    };
   } catch {
-    return false;
+    return { treeReady: false, eventSlug: DEFAULT_EVENT_SLUG };
   }
 }
 
 /** Trang chủ welcome — hiển thị link cây khi admin đã chốt */
 export default async function HomePage() {
-  const treeReady = await getTreeReady();
-  return <HomePageClient treeReady={treeReady} />;
+  const { treeReady, eventSlug } = await getHomeTreeState();
+  return <HomePageClient treeReady={treeReady} eventSlug={eventSlug} />;
 }

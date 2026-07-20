@@ -12,7 +12,6 @@ import {
   StaggerItem,
   TiltCard,
 } from "@/components/motion";
-import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 import { PromptPanel } from "./PromptPanel";
 
 const RAINBOW = ["#FF6FA5", "#FFAE3B", "#FFD15C", "#3DBE8B", "#5B8DEF", "#FF6B5A"];
@@ -42,9 +41,13 @@ function RainbowText({ text }: { text: string }) {
 
 interface HomePageClientProps {
   treeReady?: boolean;
+  eventSlug: string;
 }
 
-export function HomePageClient({ treeReady = false }: HomePageClientProps) {
+export function HomePageClient({
+  treeReady = false,
+  eventSlug,
+}: HomePageClientProps) {
   const [promptOpen, setPromptOpen] = useState(false);
   const { scrollYProgress } = useScroll();
   const heroOpacity = useTransform(scrollYProgress, [0, 0.35], [1, 0.85]);
@@ -158,7 +161,7 @@ export function HomePageClient({ treeReady = false }: HomePageClientProps) {
               <StaggerItem>
                 <div className="mt-6 flex flex-wrap justify-center lg:justify-start">
                   <Link
-                    href={`/v/${DEFAULT_EVENT_SLUG}`}
+                    href={`/v/${eventSlug}`}
                     className="rounded-full bg-white/25 px-5 py-2.5 text-sm font-bold text-white shadow-lg backdrop-blur-md transition hover:bg-white/40"
                   >
                     ✨ Xem điều kỳ diệu

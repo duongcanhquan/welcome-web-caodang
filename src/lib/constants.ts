@@ -4,7 +4,7 @@ export type TypedSupabaseClient = ReturnType<
   typeof import("@supabase/supabase-js").createClient<Database>
 >;
 
-/** Event slug mặc định cho orientation Khóa 2026 */
+/** Fallback slug khi chưa có event is_active (migration cũ / lỗi DB) */
 export const DEFAULT_EVENT_SLUG = "k2026";
 
 /** ID event seed (migration) — dùng khi cần tham chiếu cố định */

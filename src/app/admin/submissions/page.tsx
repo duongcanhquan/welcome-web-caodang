@@ -5,6 +5,7 @@ import type { EventSettingsSnapshot } from "@/components/admin/AdminEventOvervie
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_EVENT_SLUG, SEED_EVENT_ID } from "@/lib/constants";
+import { getActiveEvent, getEventBySlug } from "@/lib/events/active";
 
 export const metadata = { title: "Admin — WELCOME NEW LYONS" };
 
@@ -70,7 +71,11 @@ async function loadSnapshot(
   }
 }
 
-export default async function AdminSubmissionsPage() {
+export default async function AdminSubmissionsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ event?: string; tab?: string }>;
+}) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,23 +90,29 @@ export default async function AdminSubmissionsPage() {
     );
   }
 
+  const { event: eventParam } = await searchParams;
+
   let eventId = SEED_EVENT_ID;
   let eventSlug = DEFAULT_EVENT_SLUG;
   let eventStatus = "collecting";
   let snapshot: EventSettingsSnapshot | null = null;
 
   try {
-    const admin = createAdminClient();
-    const { data: event } = await admin
-      .from("events")
-      .select("id, slug, name, status")
-      .eq("slug", DEFAULT_EVENT_SLUG)
-      .single();
-    if (event) {
-      eventId = event.id;
-      eventSlug = event.slug;
-      eventStatus = event.status;
-      snapshot = await loadSnapshot(event.id, event.slug, event.status, event.name);
+    let selected = eventParam ? await getEventBySlug(eventParam) : null;
+    if (!selected) {
+      selected = await getActiveEvent();
+    }
+
+    if (selected) {
+      eventId = selected.id;
+      eventSlug = selected.slug;
+      eventStatus = selected.status;
+      snapshot = await loadSnapshot(
+        selected.id,
+        selected.slug,
+        selected.status,
+        selected.name
+      );
     }
   } catch {
     // Supabase chưa cấu hình

@@ -3,6 +3,7 @@ import { nanoid } from "nanoid";
 import { generatePersonalization } from "@/lib/ai/deepseek";
 import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { parseDobDdMmYyyy } from "@/lib/date/parse-dob";
+import { getActiveEvent } from "@/lib/events/active";
 import { calculateNumerology, LIFE_PATH_CONTENT } from "@/lib/numerology";
 import { uploadSubmissionImages } from "@/lib/storage/upload";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -73,8 +74,9 @@ export async function handleSubmission(
   const dobRaw = formData.get("dob") as string;
   const major = formData.get("major") as string;
   const wish = ((formData.get("wish") as string) ?? "").trim();
-  const eventSlug =
-    ((formData.get("eventSlug") as string) ?? DEFAULT_EVENT_SLUG).trim();
+  const rawSlug = ((formData.get("eventSlug") as string) ?? "").trim();
+  const active = rawSlug ? null : await getActiveEvent();
+  const eventSlug = rawSlug || active?.slug || DEFAULT_EVENT_SLUG;
   const file = formData.get("photo") as File | null;
 
   if (!name || !dobRaw || !major) {

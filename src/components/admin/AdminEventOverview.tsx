@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
-import { EVENT_MAJORS, DEFAULT_EVENT_SLUG } from "@/lib/constants";
+import { EVENT_MAJORS } from "@/lib/constants";
 import { GradientText } from "@/components/motion";
 
 export interface EventSettingsSnapshot {
@@ -47,8 +47,13 @@ export function AdminEventOverview({
     },
     {
       label: "Form gửi ảnh",
-      href: "/join",
-      desc: "Link cho sinh viên",
+      href: `/join?event=${settings.slug}`,
+      desc: treeLocked ? "Event này đã chốt" : "Link cho sinh viên",
+    },
+    {
+      label: "Cây live",
+      href: `/live/${settings.slug}`,
+      desc: "Xem cây đang lớn",
     },
     ...(treeLocked
       ? [
@@ -143,7 +148,8 @@ export function AdminEventOverview({
       </div>
 
       <p className="text-xs text-ink-muted">
-        Admin: <code>/admin</code> · Event: <code>{DEFAULT_EVENT_SLUG}</code>
+        Admin: <code>/admin</code> · Event đang quản lý:{" "}
+        <code>{settings.slug}</code>
       </p>
     </motion.section>
   );

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { AnimatedButton, Stagger, StaggerItem } from "@/components/motion";
 
 export function AdminLoginForm() {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export function AdminLoginForm() {
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify({
-          email: email.trim().toLowerCase(),
+          email: username.trim().toLowerCase(),
           password,
         }),
       });
@@ -69,12 +69,12 @@ export function AdminLoginForm() {
         <StaggerItem>
           <form onSubmit={login} className="space-y-4">
             <motion.input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Tài khoản"
               required
-              autoComplete="email"
+              autoComplete="username"
               className="w-full rounded-card border-2 border-brand-navy/15 bg-surface/80 px-4 py-3.5 text-base focus:border-brand-navy focus:outline-none"
               whileFocus={{ scale: 1.01 }}
             />

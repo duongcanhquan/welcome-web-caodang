@@ -3,7 +3,7 @@
  *
  * Chạy:
  *   node scripts/setup-admin.mjs
- *   node scripts/setup-admin.mjs quan.duong@caodangvietmy.edu.vn
+ *   node scripts/setup-admin.mjs duongcanhquan@vietmycollege.com
  *
  * Biến môi trường (từ .env.local):
  *   NEXT_PUBLIC_SUPABASE_URL
@@ -14,8 +14,9 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
-const DEFAULT_EMAIL = "quan.duong@caodangvietmy.edu.vn";
-const DEFAULT_PASSWORD = "canhquan@1221";
+/** Tài khoản admin cố định */
+const DEFAULT_EMAIL = "duongcanhquan@vietmycollege.com";
+const DEFAULT_PASSWORD = "123456";
 
 function loadEnvLocal() {
   try {
@@ -101,7 +102,7 @@ async function upsertAdmin() {
       password,
       email_confirm: true,
       app_metadata: { role: "admin" },
-      user_metadata: { full_name: "Admin Việt Mỹ" },
+      user_metadata: { full_name: "Admin Việt Mỹ", username: "duongcanhquan" },
     });
     if (error) throw new Error(`Tạo user: ${error.message}`);
     user = data.user;
@@ -112,6 +113,7 @@ async function upsertAdmin() {
       password,
       email_confirm: true,
       app_metadata: { ...user.app_metadata, role: "admin" },
+      user_metadata: { ...user.user_metadata, username: "duongcanhquan" },
     });
     if (error) throw new Error(`Cập nhật user: ${error.message}`);
     console.log("✓ Đã cập nhật mật khẩu và role admin");
@@ -164,8 +166,9 @@ try {
 
   console.log("\n══════════════════════════════════════");
   console.log("✅ Admin sẵn sàng đăng nhập tại /admin");
-  console.log("   Email:", targetEmail);
-  console.log("   Mật khẩu: (đã cập nhật — xem yêu cầu dự án)");
+  console.log("   Tài khoản: duongcanhquan");
+  console.log("   (hoặc email:", targetEmail + ")");
+  console.log("   Mật khẩu: 123456");
   console.log("══════════════════════════════════════\n");
 } catch (err) {
   console.error("\n❌ Lỗi:", err instanceof Error ? err.message : err);

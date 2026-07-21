@@ -7,6 +7,8 @@ export interface EventTreeData {
   slug: string;
   name: string;
   status: "collecting" | "locked";
+  batchLabel: string;
+  classLabel: string;
   settings: LayoutSettings;
 }
 
@@ -18,7 +20,7 @@ export async function getEventTreeData(
 
   const { data: event } = await admin
     .from("events")
-    .select("id, slug, name, status")
+    .select("id, slug, name, status, batch_label, class_label")
     .eq("slug", slug)
     .single();
 
@@ -37,6 +39,8 @@ export async function getEventTreeData(
     slug: event.slug,
     name: event.name,
     status: event.status as "collecting" | "locked",
+    batchLabel: event.batch_label ?? "",
+    classLabel: event.class_label ?? "",
     settings: {
       shape: settings.shape,
       fillRatio: Number(settings.fill_ratio),

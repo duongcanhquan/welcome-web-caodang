@@ -19,6 +19,9 @@ export default async function LivePage({
   let layout = null;
   let eventId = "";
   let blossomEvery = 50;
+  let eventName = slug;
+  let batchLabel = "";
+  let classLabel = "";
 
   try {
     const result = await getLiveTreeLayout(slug);
@@ -26,6 +29,9 @@ export default async function LivePage({
       layout = result.layout;
       eventId = result.event.eventId;
       blossomEvery = result.event.settings.blossomEvery;
+      eventName = result.event.name;
+      batchLabel = result.event.batchLabel;
+      classLabel = result.event.classLabel;
     }
   } catch {
     // Supabase chưa cấu hình
@@ -48,6 +54,9 @@ export default async function LivePage({
     <LiveTreeView
       eventSlug={slug}
       eventId={eventId}
+      eventName={eventName}
+      batchLabel={batchLabel}
+      classLabel={classLabel}
       initialLayout={layout}
       blossomEvery={blossomEvery}
       fullscreen={fullscreen}

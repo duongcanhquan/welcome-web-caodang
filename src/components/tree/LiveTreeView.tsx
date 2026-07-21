@@ -4,11 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
 import { TreeCanvas } from "./TreeCanvas";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { tryCreateClient } from "@/lib/supabase/client";
 
 interface LiveTreeViewProps {
   eventSlug: string;
   eventId: string;
+  eventName?: string;
+  batchLabel?: string;
+  classLabel?: string;
   initialLayout: TreeLayout;
   blossomEvery: number;
   fullscreen?: boolean;
@@ -17,6 +21,9 @@ interface LiveTreeViewProps {
 export function LiveTreeView({
   eventSlug,
   eventId,
+  eventName,
+  batchLabel,
+  classLabel,
   initialLayout,
   blossomEvery,
   fullscreen = false,
@@ -92,11 +99,18 @@ export function LiveTreeView({
   return (
     <div className={`flex flex-col ${fullscreen ? "h-dvh min-h-screen" : "min-h-[70vh]"}`}>
       {!fullscreen && (
-        <header className="flex items-center justify-between px-6 py-4">
-          <div>
+        <header className="flex items-center justify-between gap-4 px-6 py-4">
+          <div className="min-w-0 space-y-1">
             <p className="font-display text-sm font-semibold uppercase tracking-widest text-peach">
               Trình chiếu trực tiếp
             </p>
+            <EventCohortBadge
+              batchLabel={batchLabel}
+              classLabel={classLabel}
+              name={eventName}
+              slug={eventSlug}
+              size="sm"
+            />
             <p className="text-2xl font-bold text-foreground">
               {totalLeaves} lá 🌿
             </p>
@@ -104,7 +118,7 @@ export function LiveTreeView({
           <a
             href={`/live/${eventSlug}?present=1`}
             target="_blank"
-            className="rounded-button bg-foreground px-4 py-2 text-sm font-semibold text-white"
+            className="shrink-0 rounded-button bg-foreground px-4 py-2 text-sm font-semibold text-white"
           >
             Toàn màn hình
           </a>

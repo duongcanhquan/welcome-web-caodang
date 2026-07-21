@@ -13,7 +13,9 @@ async function loadSnapshot(
   eventId: string,
   slug: string,
   status: string,
-  name: string
+  name: string,
+  batchLabel = "",
+  classLabel = ""
 ): Promise<EventSettingsSnapshot> {
   try {
     const admin = createAdminClient();
@@ -37,6 +39,8 @@ async function loadSnapshot(
       slug,
       name,
       status,
+      batchLabel,
+      classLabel,
       fillRatio: Number(settings?.fill_ratio ?? 0.9),
       leavesMin: settings?.leaves_min ?? 40,
       leavesMax: settings?.leaves_max ?? 1500,
@@ -53,6 +57,8 @@ async function loadSnapshot(
       slug,
       name,
       status,
+      batchLabel,
+      classLabel,
       fillRatio: 0.9,
       leavesMin: 40,
       leavesMax: 1500,
@@ -105,7 +111,9 @@ export default async function AdminSubmissionsPage({
         selected.id,
         selected.slug,
         selected.status,
-        selected.name
+        selected.name,
+        selected.batch_label ?? "",
+        selected.class_label ?? ""
       );
     }
   } catch {

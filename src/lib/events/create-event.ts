@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { EVENT_MAJORS } from "@/lib/constants";
+import { composeEventName } from "@/lib/events/labels";
 import { isValidSlug, normalizeSlug } from "@/lib/events/slug";
 import { lockTree } from "@/lib/tree/lock-tree";
 import type { EventSettings } from "@/lib/types/database";
@@ -45,14 +46,28 @@ function defaultSettings(eventId: string): EventSettings {
 }
 
 export async function createEvent(input: {
-  name: string;
+  name?: string;
   slug: string;
+  /** Đợt — bắt buộc để phân biệt cây */
+  batchLabel: string;
+  /** Lớp / buổi — tuỳ chọn */
+  classLabel?: string;
   /** Nếu event active đang collecting — khoá trước khi tạo mới */
   lockActiveFirst?: boolean;
-}): Promise<{ id: string; slug: string; name: string }> {
-  const name = input.name.trim();
+}): Promise<{
+  id: string;
+  slug: string;
+  name: string;
+  batch_label: string;
+  class_label: string;
+}> {
+  const batchLabel = input.batchLabel.trim();
+  const classLabel = (input.classLabel ?? "").trim();
+  const name =
+    (input.name ?? "").trim() || composeEventName(batchLabel, classLabel);
   const slug = normalizeSlug(input.slug);
 
+  if (!batchLabel) throw new Error("Thiếu tên đợt (vd. Orientation 21/07/2026)");
   if (!name) throw new Error("Thiếu tên sự kiện");
   if (!isValidSlug(slug)) {
     throw new Error("Slug không hợp lệ (chỉ a-z, 0-9, dấu gạch ngang)");
@@ -98,10 +113,12 @@ export async function createEvent(input: {
     .insert({
       slug,
       name,
+      batch_label: batchLabel,
+      class_label: classLabel,
       status: "collecting",
       is_active: false,
     })
-    .select("id, slug, name")
+    .select("id, slug, name, batch_label, class_label")
     .single();
 
   if (createErr || !created) {

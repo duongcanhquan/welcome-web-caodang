@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { GradientText } from "@/components/motion";
+import { composeEventName } from "@/lib/events/labels";
 import { normalizeSlug } from "@/lib/events/slug";
 
 export interface AdminEventRow {
@@ -13,6 +15,8 @@ export interface AdminEventRow {
   name: string;
   status: string;
   is_active: boolean;
+  batch_label: string;
+  class_label: string;
   created_at: string;
   submissionCount: number;
 }
@@ -26,8 +30,10 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
   const [events, setEvents] = useState<AdminEventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState("");
+  const [batchLabel, setBatchLabel] = useState("");
+  const [classLabel, setClassLabel] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugTouched, setSlugTouched] = useState(false);
   const [lockFirst, setLockFirst] = useState(true);
   const [creating, setCreating] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -45,8 +51,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
       setEvents(data.events ?? []);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Lỗi tải";
-      const hint = /is_active|column/i.test(message)
-        ? " — có thể chưa chạy migration is_active trên Supabase"
+      const hint = /is_active|batch_label|column/i.test(message)
+        ? " — có thể chưa chạy migration nhãn đợt/lớp trên Supabase"
         : "";
       setError(message + hint);
     } finally {
@@ -58,11 +64,10 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
     void load();
   }, [load]);
 
-  const onNameChange = (value: string) => {
-    setName(value);
-    if (!slug || slug === normalizeSlug(name)) {
-      setSlug(normalizeSlug(value));
-    }
+  const syncSlugFromLabels = (batch: string, klass: string) => {
+    if (slugTouched) return;
+    const composed = composeEventName(batch, klass);
+    if (composed) setSlug(normalizeSlug(composed));
   };
 
   const create = async () => {
@@ -73,7 +78,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
+          batchLabel,
+          classLabel,
           slug,
           lockActiveFirst: lockFirst,
         }),
@@ -83,8 +89,10 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
         event?: { slug: string };
       };
       if (!res.ok) throw new Error(data.error ?? "Không tạo được");
-      setName("");
+      setBatchLabel("");
+      setClassLabel("");
       setSlug("");
+      setSlugTouched(false);
       await load();
       if (data.event?.slug) {
         router.push(`/admin/submissions?event=${data.event.slug}&tab=cay`);
@@ -149,6 +157,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
     }
   };
 
+  const previewName = composeEventName(batchLabel, classLabel);
+
   return (
     <motion.section
       className="space-y-6"
@@ -157,10 +167,11 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
     >
       <div className="rounded-card border border-peach/20 bg-surface/90 p-6 shadow-soft backdrop-blur-sm">
         <GradientText as="h2" className="font-display text-2xl font-bold">
-          Cây & lịch sử
+          Cây theo đợt / lớp
         </GradientText>
         <p className="mt-1 text-base text-ink-muted">
-          Giữ cây cũ để xem lại / tải về. Tạo cây mới khi bắt đầu lớp khác.
+          Mỗi đợt (hoặc lớp) = một cây riêng. Dữ liệu không lẫn nhau. Chỉ{" "}
+          <strong>một</strong> cây «Đang chạy» nhận form join mặc định.
         </p>
 
         {error && (
@@ -185,7 +196,13 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0 space-y-1.5">
+                      <EventCohortBadge
+                        batchLabel={ev.batch_label}
+                        classLabel={ev.class_label}
+                        name={ev.name}
+                        slug={ev.slug}
+                      />
                       <p className="font-semibold text-foreground">
                         {ev.name}
                         {ev.is_active && (
@@ -196,6 +213,11 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                         {ev.status === "locked" && (
                           <span className="ml-2 rounded-full bg-peach/20 px-2 py-0.5 text-sm font-bold text-peach">
                             Đã chốt
+                          </span>
+                        )}
+                        {isCurrent && (
+                          <span className="ml-2 rounded-full bg-sprout/20 px-2 py-0.5 text-sm font-bold text-sprout">
+                            Đang quản lý
                           </span>
                         )}
                       </p>
@@ -210,6 +232,13 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                         className="rounded-lg border border-peach/25 px-2.5 py-1 text-sm font-semibold hover:bg-surface-warm"
                       >
                         Quản lý
+                      </Link>
+                      <Link
+                        href={`/join?event=${ev.slug}`}
+                        target="_blank"
+                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-sm font-semibold hover:bg-surface-warm"
+                      >
+                        Form đợt này
                       </Link>
                       <Link
                         href={`/live/${ev.slug}`}
@@ -266,33 +295,65 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
 
       <div className="rounded-card border border-peach/20 bg-surface/90 p-6 shadow-soft backdrop-blur-sm">
         <h3 className="font-display text-xl font-bold text-foreground">
-          Tạo cây mới
+          Tạo cây cho đợt / lớp mới
         </h3>
         <p className="mt-1 text-base text-ink-muted">
-          Cây cũ được giữ nguyên. Form join sẽ chuyển sang cây mới.
+          Điền rõ <strong>đợt</strong> và (nếu cần) <strong>lớp</strong> để
+          không lẫn với cây cũ. Form join mặc định chuyển sang cây mới.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block text-base">
+          <label className="block text-base sm:col-span-2">
             <span className="mb-1 block font-semibold text-ink-muted">
-              Tên sự kiện
+              Đợt <span className="text-coral">*</span>
             </span>
             <input
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
-              placeholder="Cây Khóa 2027 — Việt Mỹ"
+              value={batchLabel}
+              onChange={(e) => {
+                const v = e.target.value;
+                setBatchLabel(v);
+                syncSlugFromLabels(v, classLabel);
+              }}
+              placeholder="VD: Orientation 21/07/2026"
               className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
             />
           </label>
-          <label className="block text-base">
+          <label className="block text-base sm:col-span-2">
             <span className="mb-1 block font-semibold text-ink-muted">
-              Slug (URL)
+              Lớp / buổi (tuỳ chọn)
+            </span>
+            <input
+              value={classLabel}
+              onChange={(e) => {
+                const v = e.target.value;
+                setClassLabel(v);
+                syncSlugFromLabels(batchLabel, v);
+              }}
+              placeholder="VD: Marketing sáng · CNTT chiều"
+              className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
+            />
+          </label>
+          <label className="block text-base sm:col-span-2">
+            <span className="mb-1 block font-semibold text-ink-muted">
+              Slug (URL riêng cho đợt này)
             </span>
             <input
               value={slug}
-              onChange={(e) => setSlug(normalizeSlug(e.target.value))}
-              placeholder="k2027"
+              onChange={(e) => {
+                setSlugTouched(true);
+                setSlug(normalizeSlug(e.target.value));
+              }}
+              placeholder="orientation-2107-marketing"
               className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
             />
+            <span className="mt-1 block text-sm text-ink-muted">
+              Link form: <code>/join?event={slug || "…"}</code>
+              {previewName ? (
+                <>
+                  {" "}
+                  · Tên cây: <strong>{previewName}</strong>
+                </>
+              ) : null}
+            </span>
           </label>
         </div>
         <label className="mt-3 flex items-start gap-2 text-base text-ink-muted">
@@ -304,16 +365,16 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
           />
           <span>
             Khoá cây đang chạy trước khi tạo mới (khuyến nghị — giữ layout cũ
-            để xem lại)
+            để xem lại / tải CSV)
           </span>
         </label>
         <button
           type="button"
-          disabled={creating || !name.trim() || !slug.trim()}
+          disabled={creating || !batchLabel.trim() || !slug.trim()}
           onClick={() => void create()}
           className="mt-4 rounded-full bg-brand-navy px-5 py-2.5 text-base font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
         >
-          {creating ? "Đang tạo…" : "Tạo cây mới"}
+          {creating ? "Đang tạo…" : "Tạo cây đợt này"}
         </button>
       </div>
     </motion.section>

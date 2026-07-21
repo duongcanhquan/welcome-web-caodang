@@ -12,7 +12,7 @@ export async function GET() {
     const { data: events, error } = await admin
       .from("events")
       .select(
-        "id, slug, name, status, is_active, created_at, submissions(count)"
+        "id, slug, name, status, is_active, batch_label, class_label, created_at, submissions(count)"
       )
       .order("created_at", { ascending: false });
 
@@ -31,6 +31,8 @@ export async function GET() {
         name: ev.name,
         status: ev.status,
         is_active: ev.is_active,
+        batch_label: ev.batch_label ?? "",
+        class_label: ev.class_label ?? "",
         created_at: ev.created_at,
         submissionCount,
       };
@@ -51,12 +53,16 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as {
       name?: string;
       slug?: string;
+      batchLabel?: string;
+      classLabel?: string;
       lockActiveFirst?: boolean;
     };
 
     const created = await createEvent({
-      name: body.name ?? "",
+      name: body.name,
       slug: body.slug ?? "",
+      batchLabel: body.batchLabel ?? "",
+      classLabel: body.classLabel ?? "",
       lockActiveFirst: Boolean(body.lockActiveFirst),
     });
 

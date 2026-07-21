@@ -12,6 +12,7 @@ import {
   StaggerItem,
   TiltCard,
 } from "@/components/motion";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { PromptPanel } from "./PromptPanel";
 
 const RAINBOW = ["#FF6FA5", "#FFAE3B", "#FFD15C", "#3DBE8B", "#5B8DEF", "#FF6B5A"];
@@ -42,11 +43,17 @@ function RainbowText({ text }: { text: string }) {
 interface HomePageClientProps {
   treeReady?: boolean;
   eventSlug: string;
+  eventName?: string;
+  batchLabel?: string;
+  classLabel?: string;
 }
 
 export function HomePageClient({
   treeReady = false,
   eventSlug,
+  eventName,
+  batchLabel,
+  classLabel,
 }: HomePageClientProps) {
   const [promptOpen, setPromptOpen] = useState(false);
   const { scrollYProgress } = useScroll();
@@ -130,6 +137,20 @@ export function HomePageClient({
               </motion.span>
             </StaggerItem>
 
+            {(batchLabel || classLabel || eventName) && (
+              <StaggerItem>
+                <div className="mt-3 flex justify-center lg:justify-start">
+                  <EventCohortBadge
+                    batchLabel={batchLabel}
+                    classLabel={classLabel}
+                    name={eventName}
+                    slug={eventSlug}
+                    size="sm"
+                  />
+                </div>
+              </StaggerItem>
+            )}
+
             <StaggerItem>
               <h1 className="font-display mt-5 text-5xl font-bold leading-[1.05] text-white drop-shadow-[0_4px_24px_rgb(13_61_107_/_50%)] sm:text-6xl lg:text-7xl">
                 WELCOME
@@ -140,7 +161,7 @@ export function HomePageClient({
             <StaggerItem>
               <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap lg:justify-start">
                 <AnimatedButton
-                  href="/join"
+                  href={`/join?event=${eventSlug}`}
                   variant="sprout"
                   className="max-w-full px-6 py-4 text-center text-base leading-snug shadow-sticker ring-2 ring-white/40 sm:text-lg"
                 >

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { tryCreateClient } from "@/lib/supabase/client";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { GradientText } from "@/components/motion";
 import type { EventSettingsSnapshot } from "./AdminEventOverview";
 import { AdminEventOverview } from "./AdminEventOverview";
@@ -93,6 +94,15 @@ export function AdminDashboard({
             <GradientText as="h1" className="font-display text-2xl font-bold sm:text-3xl">
               Admin WELCOME
             </GradientText>
+            <div className="mt-1">
+              <EventCohortBadge
+                batchLabel={snapshot?.batchLabel}
+                classLabel={snapshot?.classLabel}
+                name={snapshot?.name}
+                slug={eventSlug}
+                size="sm"
+              />
+            </div>
             <p className="mt-0.5 text-sm font-medium text-ink-muted sm:text-base">
               {snapshot?.name ?? "Sự kiện"} ·{" "}
               <code className="text-peach">{eventSlug}</code> ·{" "}

@@ -15,6 +15,25 @@ function csvEscape(value: string): string {
   return value;
 }
 
+function exportFileBase(event: {
+  slug: string;
+  batch_label?: string | null;
+  class_label?: string | null;
+}): string {
+  const raw = [event.batch_label, event.class_label, event.slug]
+    .map((s) => (s || "").trim())
+    .filter(Boolean)
+    .join("-")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return raw || event.slug;
+}
+
 export async function exportSubmissionsCsv(eventId: string): Promise<{
   filename: string;
   body: string;
@@ -22,7 +41,7 @@ export async function exportSubmissionsCsv(eventId: string): Promise<{
   const admin = createAdminClient();
   const { data: event } = await admin
     .from("events")
-    .select("slug")
+    .select("slug, batch_label, class_label")
     .eq("id", eventId)
     .single();
   if (!event) throw new Error("Sự kiện không tồn tại");
@@ -69,7 +88,7 @@ export async function exportSubmissionsCsv(eventId: string): Promise<{
   }
 
   return {
-    filename: `${event.slug}-submissions.csv`,
+    filename: `${exportFileBase(event)}-submissions.csv`,
     body: "\uFEFF" + lines.join("\n"),
   };
 }
@@ -132,7 +151,7 @@ export async function exportPhotosZip(eventId: string): Promise<{
   const admin = createAdminClient();
   const { data: event } = await admin
     .from("events")
-    .select("slug")
+    .select("slug, batch_label, class_label")
     .eq("id", eventId)
     .single();
   if (!event) throw new Error("Sự kiện không tồn tại");
@@ -176,7 +195,7 @@ export async function exportPhotosZip(eventId: string): Promise<{
   });
 
   return {
-    filename: `${event.slug}-photos.zip`,
+    filename: `${exportFileBase(event)}-photos.zip`,
     body: Buffer.from(body),
   };
 }
@@ -188,7 +207,7 @@ export async function exportTreePng(eventId: string): Promise<{
   const admin = createAdminClient();
   const { data: event } = await admin
     .from("events")
-    .select("slug, name")
+    .select("slug, name, batch_label, class_label")
     .eq("id", eventId)
     .single();
   if (!event) throw new Error("Sự kiện không tồn tại");
@@ -293,7 +312,7 @@ export async function exportTreePng(eventId: string): Promise<{
       : await base.png().toBuffer();
 
   return {
-    filename: `${event.slug}-tree.png`,
+    filename: `${exportFileBase(event)}-tree.png`,
     body,
   };
 }

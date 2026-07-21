@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "motion/react";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { EVENT_MAJORS } from "@/lib/constants";
 import { GradientText } from "@/components/motion";
 
@@ -9,6 +10,8 @@ export interface EventSettingsSnapshot {
   slug: string;
   name: string;
   status: string;
+  batchLabel?: string;
+  classLabel?: string;
   fillRatio: number;
   leavesMin: number;
   leavesMax: number;
@@ -81,6 +84,14 @@ export function AdminEventOverview({
         <GradientText as="h2" className="font-display text-2xl font-bold">
           Tổng quan sự kiện
         </GradientText>
+        <div className="mt-2">
+          <EventCohortBadge
+            batchLabel={settings.batchLabel}
+            classLabel={settings.classLabel}
+            name={settings.name}
+            slug={settings.slug}
+          />
+        </div>
         <p className="mt-1 text-base text-ink-muted">
           {settings.name} · <code className="text-peach">{settings.slug}</code>
         </p>

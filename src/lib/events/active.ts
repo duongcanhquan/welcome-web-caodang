@@ -2,7 +2,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 import type { Event } from "@/lib/types/database";
 
-export type ActiveEvent = Pick<Event, "id" | "slug" | "name" | "status" | "is_active" | "created_at">;
+export type ActiveEvent = Pick<
+  Event,
+  | "id"
+  | "slug"
+  | "name"
+  | "status"
+  | "is_active"
+  | "batch_label"
+  | "class_label"
+  | "created_at"
+>;
+
+const EVENT_SELECT =
+  "id, slug, name, status, is_active, batch_label, class_label, created_at";
 
 /** Event đang chạy (join/home mặc định). Fallback slug k2026. */
 export async function getActiveEvent(): Promise<ActiveEvent | null> {
@@ -10,7 +23,7 @@ export async function getActiveEvent(): Promise<ActiveEvent | null> {
     const admin = createAdminClient();
     const { data: active } = await admin
       .from("events")
-      .select("id, slug, name, status, is_active, created_at")
+      .select(EVENT_SELECT)
       .eq("is_active", true)
       .maybeSingle();
 
@@ -18,7 +31,7 @@ export async function getActiveEvent(): Promise<ActiveEvent | null> {
 
     const { data: fallback } = await admin
       .from("events")
-      .select("id, slug, name, status, is_active, created_at")
+      .select(EVENT_SELECT)
       .eq("slug", DEFAULT_EVENT_SLUG)
       .maybeSingle();
 
@@ -33,7 +46,7 @@ export async function getEventBySlug(slug: string): Promise<ActiveEvent | null> 
     const admin = createAdminClient();
     const { data } = await admin
       .from("events")
-      .select("id, slug, name, status, is_active, created_at")
+      .select(EVENT_SELECT)
       .eq("slug", slug)
       .maybeSingle();
     return (data as ActiveEvent | null) ?? null;

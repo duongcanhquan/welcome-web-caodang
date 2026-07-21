@@ -18,6 +18,7 @@ import type { LifePathContent } from "@/lib/numerology";
 import type { NumerologyResult } from "@/lib/numerology";
 import { getMajorMatchMessage } from "@/lib/numerology";
 import { tryCreateClient } from "@/lib/supabase/client";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 
 interface MeData {
   submission: {
@@ -28,7 +29,14 @@ interface MeData {
     dob: string;
     wish: string;
     slot_index: number | null;
-    events: { id: string; slug: string; name: string; status: string };
+    events: {
+      id: string;
+      slug: string;
+      name: string;
+      status: string;
+      batch_label?: string;
+      class_label?: string;
+    };
   };
   insight: {
     numerology: NumerologyResult & { content: LifePathContent };
@@ -319,8 +327,19 @@ export function WaitingPageClient({
             </h1>
           </StaggerItem>
           <StaggerItem>
+            <div className="mt-3 flex justify-center">
+              <EventCohortBadge
+                batchLabel={submission.events.batch_label}
+                classLabel={submission.events.class_label}
+                name={submission.events.name}
+                slug={submission.events.slug}
+                size="sm"
+              />
+            </div>
+          </StaggerItem>
+          <StaggerItem>
             <p className="mt-2 text-white/75">
-              Cây đã có{" "}
+              Lá của bạn đã mọc trên cây «{submission.events.name}». Cây đã có{" "}
               <motion.strong
                 key={totalLeaves}
                 className="text-honey"

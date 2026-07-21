@@ -1,12 +1,16 @@
 "use client";
 
 import { JoinForm } from "@/components/join/JoinForm";
+import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { FadeIn, GradientText, Stagger, StaggerItem } from "@/components/motion";
 import { motion } from "motion/react";
 
 interface JoinPageContentProps {
   majors: string[];
   eventSlug: string;
+  eventName: string;
+  batchLabel?: string;
+  classLabel?: string;
   maxFileMb: number;
   isLocked: boolean;
 }
@@ -14,6 +18,9 @@ interface JoinPageContentProps {
 export function JoinPageContent({
   majors,
   eventSlug,
+  eventName,
+  batchLabel,
+  classLabel,
   maxFileMb,
   isLocked,
 }: JoinPageContentProps) {
@@ -30,13 +37,24 @@ export function JoinPageContent({
           </motion.p>
         </StaggerItem>
         <StaggerItem>
-          <GradientText as="h1" className="font-display mt-1 text-3xl font-bold">
+          <div className="mt-3 flex justify-center">
+            <EventCohortBadge
+              batchLabel={batchLabel}
+              classLabel={classLabel}
+              name={eventName}
+              slug={eventSlug}
+            />
+          </div>
+        </StaggerItem>
+        <StaggerItem>
+          <GradientText as="h1" className="font-display mt-3 text-3xl font-bold">
             Thần số học của bạn ✨
           </GradientText>
         </StaggerItem>
         <StaggerItem>
           <p className="mt-2 text-ink-muted">
-            Gửi ảnh — nhận bất ngờ và xem thần số học của bạn ngay
+            Gửi ảnh cho <strong className="text-foreground">{eventName}</strong> —
+            nhận bất ngờ và xem thần số học ngay
           </p>
         </StaggerItem>
       </Stagger>
@@ -48,7 +66,7 @@ export function JoinPageContent({
             animate={{ scale: [1, 1.02, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           >
-            Sự kiện đã chốt cây — không nhận thêm lá mới.
+            Đợt «{eventName}» đã chốt cây — không nhận thêm lá mới.
           </motion.p>
         </FadeIn>
       ) : (

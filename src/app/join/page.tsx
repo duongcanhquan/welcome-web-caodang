@@ -12,7 +12,7 @@ async function getEventSettings(slug: string) {
     const admin = createAdminClient();
     const { data: event } = await admin
       .from("events")
-      .select("id, slug, name, status")
+      .select("id, slug, name, status, batch_label, class_label")
       .eq("slug", slug)
       .single();
 
@@ -43,11 +43,15 @@ export default async function JoinPage({
   const majors = [...EVENT_MAJORS];
   const maxFileMb = Number(data?.settings?.max_file_mb) || 5;
   const isLocked = data?.event?.status === "locked";
+  const eventName = data?.event?.name ?? slug;
 
   return (
     <JoinPageContent
       majors={majors}
       eventSlug={slug}
+      eventName={eventName}
+      batchLabel={data?.event?.batch_label ?? active?.batch_label ?? ""}
+      classLabel={data?.event?.class_label ?? active?.class_label ?? ""}
       maxFileMb={maxFileMb}
       isLocked={isLocked}
     />

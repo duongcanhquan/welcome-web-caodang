@@ -5,6 +5,9 @@ import { getActiveEvent } from "@/lib/events/active";
 async function getHomeTreeState(): Promise<{
   treeReady: boolean;
   eventSlug: string;
+  eventName: string;
+  batchLabel: string;
+  classLabel: string;
 }> {
   try {
     const active = await getActiveEvent();
@@ -12,14 +15,23 @@ async function getHomeTreeState(): Promise<{
     return {
       treeReady: active?.status === "locked",
       eventSlug: slug,
+      eventName: active?.name ?? slug,
+      batchLabel: active?.batch_label ?? "",
+      classLabel: active?.class_label ?? "",
     };
   } catch {
-    return { treeReady: false, eventSlug: DEFAULT_EVENT_SLUG };
+    return {
+      treeReady: false,
+      eventSlug: DEFAULT_EVENT_SLUG,
+      eventName: DEFAULT_EVENT_SLUG,
+      batchLabel: "",
+      classLabel: "",
+    };
   }
 }
 
 /** Trang chủ welcome — hiển thị link cây khi admin đã chốt */
 export default async function HomePage() {
-  const { treeReady, eventSlug } = await getHomeTreeState();
-  return <HomePageClient treeReady={treeReady} eventSlug={eventSlug} />;
+  const state = await getHomeTreeState();
+  return <HomePageClient {...state} />;
 }

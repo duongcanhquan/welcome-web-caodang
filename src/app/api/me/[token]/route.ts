@@ -15,7 +15,7 @@ export async function GET(
       `
       id, token, name, dob, major, wish, leaf_url, photo_url,
       slot_index, created_at, hidden,
-      events ( id, slug, name, status )
+      events ( id, slug, name, status, batch_label, class_label )
     `
     )
     .eq("token", token)
@@ -30,6 +30,8 @@ export async function GET(
     slug: string;
     name: string;
     status: string;
+    batch_label?: string;
+    class_label?: string;
   };
 
   const [insightRes, countRes] = await Promise.all([

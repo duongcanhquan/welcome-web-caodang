@@ -12,6 +12,10 @@ export interface Event {
   status: "collecting" | "locked";
   /** Chỉ một event true — dùng cho join/home mặc định */
   is_active: boolean;
+  /** Đợt orientation / đợt thu thập */
+  batch_label: string;
+  /** Lớp hoặc buổi trong đợt */
+  class_label: string;
   created_at: string;
 }
 

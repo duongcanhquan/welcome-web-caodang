@@ -16,12 +16,15 @@ interface JoinFormProps {
   majors: string[];
   eventSlug?: string;
   maxFileMb?: number;
+  /** Mở panel prompt tạo ảnh (giống trang chủ) */
+  onOpenPrompt?: () => void;
 }
 
 export function JoinForm({
   majors,
   eventSlug = DEFAULT_EVENT_SLUG,
   maxFileMb = 5,
+  onOpenPrompt,
 }: JoinFormProps) {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -199,6 +202,16 @@ export function JoinForm({
             Chọn từ máy
           </button>
         </div>
+
+        {onOpenPrompt && (
+          <button
+            type="button"
+            onClick={onOpenPrompt}
+            className="w-full rounded-xl border border-dashed border-brand-navy/30 bg-brand-navy/5 px-3 py-2.5 text-sm font-semibold text-brand-navy transition hover:bg-brand-navy/10"
+          >
+            Chưa có ảnh? Lấy Prompt tạo ảnh (AI) →
+          </button>
+        )}
 
         {/* Camera — capture ưu tiên camera trước */}
         <input

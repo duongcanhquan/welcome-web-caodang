@@ -80,7 +80,7 @@ export function LiveTreeView({
   }, [eventId, eventSlug, refreshLayout, blossomEvery]);
 
   return (
-    <div className={`flex flex-col ${fullscreen ? "h-screen" : "min-h-[70vh]"}`}>
+    <div className={`flex flex-col ${fullscreen ? "h-dvh min-h-screen" : "min-h-[70vh]"}`}>
       {!fullscreen && (
         <header className="flex items-center justify-between px-6 py-4">
           <div>

@@ -62,7 +62,7 @@ export function ViewerTreeView({
 
   if (presentation) {
     return (
-      <div className="relative h-screen overflow-hidden">
+      <div className="relative h-dvh min-h-screen overflow-hidden">
         <TreeCanvas
           layout={layout}
           mode="view"

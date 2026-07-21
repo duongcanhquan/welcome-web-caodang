@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "motion/react";
 import { EventCohortBadge } from "@/components/events/EventCohortBadge";
+import { JoinLinkShare } from "@/components/admin/JoinLinkShare";
 import { GradientText } from "@/components/motion";
 import { composeEventName } from "@/lib/events/labels";
 import { normalizeSlug } from "@/lib/events/slug";
@@ -27,6 +28,7 @@ interface AdminEventsPanelProps {
 
 export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [events, setEvents] = useState<AdminEventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +39,12 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
   const [lockFirst, setLockFirst] = useState(true);
   const [creating, setCreating] = useState(false);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [createdSlug, setCreatedSlug] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("created");
+    if (fromUrl) setCreatedSlug(fromUrl);
+  }, [searchParams]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -73,6 +81,7 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
   const create = async () => {
     setCreating(true);
     setError(null);
+    setCreatedSlug(null);
     try {
       const res = await fetch("/api/admin/events", {
         method: "POST",
@@ -89,13 +98,18 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
         event?: { slug: string };
       };
       if (!res.ok) throw new Error(data.error ?? "Không tạo được");
+      const newSlug = data.event?.slug ?? slug;
       setBatchLabel("");
       setClassLabel("");
       setSlug("");
       setSlugTouched(false);
+      setCreatedSlug(newSlug);
       await load();
-      if (data.event?.slug) {
-        router.push(`/admin/submissions?event=${data.event.slug}&tab=cay`);
+      if (newSlug) {
+        // ?created= giữ banner link sau khi chuyển trang
+        router.push(
+          `/admin/submissions?event=${newSlug}&tab=cay&created=${encodeURIComponent(newSlug)}`
+        );
         router.refresh();
       }
     } catch (err) {
@@ -165,13 +179,54 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
     >
+      {createdSlug && (
+        <div className="space-y-3 rounded-card border-2 border-sprout/40 bg-sprout/5 p-5 shadow-soft">
+          <p className="font-display text-xl font-bold text-foreground">
+            Đã tạo cây — gửi link cho sinh viên
+          </p>
+          <JoinLinkShare eventSlug={createdSlug} highlight />
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href={`/live/${createdSlug}?present=1`}
+              target="_blank"
+              className="rounded-full bg-brand-navy px-4 py-2 text-sm font-bold text-white"
+            >
+              Mở Live chờ SV
+            </Link>
+            <Link
+              href={`/admin/submissions?event=${createdSlug}&tab=tong-quan`}
+              className="rounded-full border border-peach/30 px-4 py-2 text-sm font-semibold"
+            >
+              Quản lý đợt này
+            </Link>
+            <button
+              type="button"
+              onClick={() => {
+                setCreatedSlug(null);
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete("created");
+                const q = params.toString();
+                router.replace(
+                  q
+                    ? `/admin/submissions?${q}`
+                    : "/admin/submissions?tab=cay"
+                );
+              }}
+              className="rounded-full px-4 py-2 text-sm text-ink-muted underline"
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-card border border-peach/20 bg-surface/90 p-6 shadow-soft backdrop-blur-sm">
         <GradientText as="h2" className="font-display text-2xl font-bold">
           Cây theo đợt / lớp
         </GradientText>
         <p className="mt-1 text-base text-ink-muted">
-          Mỗi đợt (hoặc lớp) = một cây riêng. Dữ liệu không lẫn nhau. Chỉ{" "}
-          <strong>một</strong> cây «Đang chạy» nhận form join mặc định.
+          Mỗi đợt (hoặc lớp) = một cây riêng. Sau khi tạo sẽ hiện{" "}
+          <strong>link đầy đủ</strong> để gửi sinh viên nộp ảnh.
         </p>
 
         {error && (
@@ -189,14 +244,14 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
               return (
                 <li
                   key={ev.id}
-                  className={`rounded-xl border px-4 py-3 ${
+                  className={`rounded-xl border p-4 ${
                     isCurrent
-                      ? "border-brand-navy/40 bg-brand-navy/5"
-                      : "border-peach/20 bg-surface-warm/40"
+                      ? "border-sprout/40 bg-sprout/5"
+                      : "border-peach/15 bg-surface-warm/50"
                   }`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0 space-y-1.5">
+                    <div className="min-w-0 space-y-1">
                       <EventCohortBadge
                         batchLabel={ev.batch_label}
                         classLabel={ev.class_label}
@@ -265,6 +320,9 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                       )}
                     </div>
                   </div>
+                  {ev.status === "collecting" && (
+                    <JoinLinkShare eventSlug={ev.slug} className="mt-3" />
+                  )}
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {(
                       [
@@ -298,28 +356,19 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
           Tạo cây cho đợt / lớp mới
         </h3>
         <div className="mt-2 space-y-2 rounded-xl bg-brand-navy/5 px-3 py-3 text-sm text-ink-muted ring-1 ring-peach/15">
-          <p className="font-semibold text-foreground">Quy trình nhanh (khuyến nghị)</p>
+          <p className="font-semibold text-foreground">Quy trình nhanh</p>
           <ol className="list-decimal space-y-1 pl-4">
             <li>
-              <strong>Tạo đợt mới trước</strong> → nhận slug / link form riêng
+              <strong>Tạo đợt</strong> → hệ thống hiện link đầy đủ để copy
             </li>
+            <li>Gửi link đó cho sinh viên (Zalo / QR / email)</li>
             <li>
-              Gửi link <code className="text-xs">/join?event=slug-đợt</code> cho
-              sinh viên nộp ảnh
-            </li>
-            <li>
-              Xem Live realtime → hết buổi bấm <strong>Chốt cây</strong>
+              Mở <strong>Live</strong> chờ ảnh → hết buổi bấm Chốt cây
             </li>
           </ol>
-          <p className="pt-1">
-            Có thể dùng đợt đang chạy sẵn (không tạo mới) nếu chỉ một buổi /
-            một lớp. <strong>Không</strong> nên để sinh viên nộp xong rồi mới tạo
-            đợt — ảnh sẽ nằm nhầm đợt cũ.
-          </p>
         </div>
         <p className="mt-3 text-base text-ink-muted">
-          Điền rõ <strong>đợt</strong> và (nếu cần) <strong>lớp</strong>. Form
-          mặc định <code>/join</code> luôn trỏ đợt <strong>Đang chạy</strong>.
+          Điền rõ <strong>đợt</strong> và (nếu cần) <strong>lớp</strong>.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block text-base sm:col-span-2">
@@ -366,7 +415,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
               className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
             />
             <span className="mt-1 block text-sm text-ink-muted">
-              Link form: <code>/join?event={slug || "…"}</code>
+              Sau tạo sẽ hiện link dạng{" "}
+              <code>…/join?event={slug || "slug-dot"}</code>
               {previewName ? (
                 <>
                   {" "}
@@ -384,8 +434,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
             className="mt-1"
           />
           <span>
-            Khoá đợt đang chạy trước (nhanh — mosaic lưu nền). Giữ cây cũ để xem
-            lại / CSV.
+            Khoá đợt đang chạy sau khi tạo (nhanh — mosaic + chốt chạy nền). Giữ
+            cây cũ để xem lại / CSV.
           </span>
         </label>
         <button

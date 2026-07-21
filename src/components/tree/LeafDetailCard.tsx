@@ -1,7 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { TreeLeaf } from "@/lib/tree/types";
-import { calculateNumerology, LIFE_PATH_CONTENT, getMajorMatchMessage } from "@/lib/numerology";
+import {
+  calculateNumerology,
+  LIFE_PATH_CONTENT,
+  getMajorMatchMessage,
+} from "@/lib/numerology";
 
 interface LeafDetailCardProps {
   leaf: TreeLeaf;
@@ -14,21 +19,33 @@ export function LeafDetailCard({ leaf, dob, onClose }: LeafDetailCardProps) {
   const lpContent = numerology
     ? LIFE_PATH_CONTENT[numerology.lifePath]
     : null;
+  /** Chặn click mở thẻ bị bubble thành đóng ngay (pointerup → mount → click) */
+  const ignoreCloseUntil = useRef(Date.now() + 400);
+
+  useEffect(() => {
+    ignoreCloseUntil.current = Date.now() + 400;
+  }, [leaf.id]);
+
+  const requestClose = () => {
+    if (Date.now() < ignoreCloseUntil.current) return;
+    onClose();
+  };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40 p-4 sm:items-center"
-      onClick={onClose}
+      onClick={requestClose}
+      onPointerUp={(e) => e.stopPropagation()}
       role="dialog"
       aria-modal
     >
       <div
-        className="w-full max-w-sm animate-slide-up rounded-card bg-surface p-6 shadow-sticker"
+        className="relative w-full max-w-sm animate-slide-up rounded-card bg-surface p-6 shadow-sticker"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
-          onClick={onClose}
+          onClick={requestClose}
           className="absolute right-4 top-4 text-ink-muted"
           aria-label="Đóng"
         >
@@ -63,7 +80,7 @@ export function LeafDetailCard({ leaf, dob, onClose }: LeafDetailCardProps) {
               </span>
               <span className="ml-2 text-ink-muted">{lpContent.keywords}</span>
             </p>
-            <p className="text-xs text-ink-muted text-center">
+            <p className="text-xs text-center text-ink-muted">
               {getMajorMatchMessage(numerology.lifePath, leaf.major ?? "")}
             </p>
             <p className="text-xs text-center opacity-60">

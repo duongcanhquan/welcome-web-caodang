@@ -18,8 +18,8 @@ interface TreeCanvasProps {
 }
 
 /**
- * Cây full khung: mobile/portrait = cover (lấp màn hình);
- * desktop ngang = contain, đất neo đáy.
+ * Cây full khung. Click lá chỉ qua hit-test pointer (tránh double-fire
+ * pointerup + click làm đóng thẻ chi tiết ngay).
  */
 export function TreeCanvas({
   layout,
@@ -33,11 +33,12 @@ export function TreeCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(mode === "mini" ? 0.32 : 1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const cameraRef = useRef({ scale: 1, panX: 0, panY: 0 });
+  const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const { width: W, height: H } = layout.dimensions;
   const baseLeafSize = mode === "mini" ? 28 : presentation ? 58 : 52;
   const skyVariant = presentation ? "twilight" : "tree";
-  const lockedCamera = mode !== "mini";
 
   const photoLeaves = useMemo(
     () =>
@@ -51,32 +52,32 @@ export function TreeCanvas({
     if (mode === "mini" || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const vw = rect.width;
-    // visualViewport giúp đúng khi thanh địa chỉ mobile ẩn/hiện
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    const vh = Math.max(
-      rect.height,
-      vv && rect.top < 8 ? vv.height - Math.max(0, rect.top) : 0
-    );
+    const vh = rect.height;
     if (vw < 8 || vh < 8) return;
 
     const scaleW = vw / W;
     const scaleH = vh / H;
     const portrait = vh / vw >= 1.05;
     const narrow = vw < 768;
-
-    // Điện thoại / portrait: cover — cây lấp kín, cắt nhẹ hai bên thay vì để trống trời
-    // Desktop ngang: contain — cả cây trong khung
+    // Cover trên mobile; thiên về giữ tán (ảnh) trong khung — không neo đáy quá mạnh
     const useCover = portrait || narrow || presentation;
     const fitScale = useCover
       ? Math.max(scaleW, scaleH)
       : Math.min(scaleW, scaleH);
 
+    const panX = (vw - W * fitScale) / 2;
+    // Cover: căn giữa theo chiều dọc một chút về phía tán (ảnh ở nửa trên)
+    let panY: number;
+    if (useCover) {
+      const overflow = H * fitScale - vh;
+      panY = overflow > 0 ? -overflow * 0.35 : (vh - H * fitScale) / 2;
+    } else {
+      panY = vh - H * fitScale;
+    }
+
+    cameraRef.current = { scale: fitScale, panX, panY };
     setScale(fitScale);
-    setPan({
-      x: (vw - W * fitScale) / 2,
-      // Đất sát đáy; cover có thể cắt đỉnh tán một chút
-      y: vh - H * fitScale,
-    });
+    setPan({ x: panX, y: panY });
   }, [W, H, mode, presentation]);
 
   useEffect(() => {
@@ -89,29 +90,86 @@ export function TreeCanvas({
     ro.observe(el);
     window.addEventListener("orientationchange", fitToViewport);
     window.visualViewport?.addEventListener("resize", fitToViewport);
-    window.visualViewport?.addEventListener("scroll", fitToViewport);
     return () => {
       ro.disconnect();
       window.removeEventListener("orientationchange", fitToViewport);
       window.visualViewport?.removeEventListener("resize", fitToViewport);
-      window.visualViewport?.removeEventListener("scroll", fitToViewport);
     };
   }, [fitToViewport, mode]);
+
+  const pickLeafAtClient = useCallback(
+    (clientX: number, clientY: number): TreeLeaf | null => {
+      const el = containerRef.current;
+      if (!el || !onLeafClick) return null;
+      const rect = el.getBoundingClientRect();
+      const { scale: s, panX, panY } = cameraRef.current;
+      if (s <= 0) return null;
+
+      const canvasX = (clientX - rect.left - panX) / s;
+      const canvasY = (clientY - rect.top - panY) / s;
+
+      let best: TreeLeaf | null = null;
+      let bestDist = Infinity;
+
+      for (const leaf of photoLeaves) {
+        if (!leaf.submissionId) continue;
+        const cx = leaf.x * W;
+        const cy = leaf.y * H;
+        const radius = (baseLeafSize * leaf.scale) / 2;
+        const dist = Math.hypot(canvasX - cx, canvasY - cy);
+        if (dist <= radius * 1.4 && dist < bestDist) {
+          best = leaf;
+          bestDist = dist;
+        }
+      }
+      return best;
+    },
+    [W, H, baseLeafSize, photoLeaves, onLeafClick]
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.button !== 0) return;
+      pointerDownRef.current = { x: e.clientX, y: e.clientY };
+    },
+    []
+  );
+
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!onLeafClick || e.button !== 0) return;
+      const down = pointerDownRef.current;
+      pointerDownRef.current = null;
+      if (!down) return;
+      // Bỏ qua nếu kéo tay (không phải tap)
+      if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) return;
+
+      const leaf = pickLeafAtClient(e.clientX, e.clientY);
+      if (leaf) {
+        e.preventDefault();
+        e.stopPropagation();
+        onLeafClick(leaf);
+      }
+    },
+    [onLeafClick, pickLeafAtClient]
+  );
 
   return (
     <div
       ref={containerRef}
       className={`relative overflow-hidden ${className}`}
       style={{ touchAction: "manipulation" }}
+      onPointerDown={mode === "mini" ? undefined : handlePointerDown}
+      onPointerUp={mode === "mini" ? undefined : handlePointerUp}
     >
       <MagicalSkyBackground variant={skyVariant} className="z-0" />
 
-      {(presentation || mode === "view") && (
+      {(presentation || mode === "view" || mode === "live") && (
         <WindFireflies vivid={presentation} />
       )}
 
       <div
-        className="relative z-[2] origin-top-left will-change-transform"
+        className="pointer-events-none relative z-[2] origin-top-left will-change-transform"
         style={{
           width: W,
           height: H,
@@ -119,7 +177,6 @@ export function TreeCanvas({
           filter: presentation
             ? "drop-shadow(0 24px 60px rgba(0,0,0,0.35))"
             : undefined,
-          ...(lockedCamera ? { touchAction: "none" as const } : null),
         }}
       >
         <MightyTreeArt
@@ -142,7 +199,8 @@ export function TreeCanvas({
               presentation={presentation}
               windSway={mode !== "mini"}
               swayDelay={i * 0.05}
-              onClick={onLeafClick}
+              // Click xử lý ở canvas — tránh double-fire đóng thẻ
+              interactive={false}
               onBranch
             />
           ))}

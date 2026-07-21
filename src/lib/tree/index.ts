@@ -1,6 +1,7 @@
 export { buildTreeLayout, layoutToMosaicLeaves } from "./build-layout";
 export { generatePhotoSlotsOnTree, FOLIAGE_CLUSTERS } from "./branch-slots";
 export { computeTargetSlots, placeLeavesNatural } from "./placement";
+export { hashEventId } from "./hash-event-id";
 export type {
   TreeLayout,
   TreeLeaf,

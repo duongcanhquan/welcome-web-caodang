@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { motion } from "motion/react";
 import { EventCohortBadge } from "@/components/events/EventCohortBadge";
+import { JoinLinkShare } from "@/components/admin/JoinLinkShare";
 import { EVENT_MAJORS } from "@/lib/constants";
 import { GradientText } from "@/components/motion";
 
@@ -97,16 +98,28 @@ export function AdminEventOverview({
         </p>
       </div>
 
+      {!treeLocked && settings.status !== "locked" && (
+        <JoinLinkShare eventSlug={settings.slug} highlight />
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <InfoRow
           label="Trạng thái"
-          value={settings.status === "locked" ? "🔒 Đã chốt" : "🌱 Đang thu thập"}
+          value={
+            settings.status === "locked" ? "🔒 Đã chốt" : "🌱 Đang thu thập"
+          }
         />
         <InfoRow label="Đã nộp" value={`${settings.totalSubmissions} bạn`} />
         <InfoRow label="Ảnh tối đa" value={`${settings.maxFileMb} MB`} />
-        <InfoRow label="Rate limit" value={`${settings.rateLimitPerIp}/IP·24h`} />
+        <InfoRow
+          label="Rate limit"
+          value={`${settings.rateLimitPerIp}/IP·24h`}
+        />
         <InfoRow label="Fill ratio" value={String(settings.fillRatio)} />
-        <InfoRow label="Lá min–max" value={`${settings.leavesMin}–${settings.leavesMax}`} />
+        <InfoRow
+          label="Lá min–max"
+          value={`${settings.leavesMin}–${settings.leavesMax}`}
+        />
         <InfoRow label="Nở hoa mỗi" value={`${settings.blossomEvery} lá`} />
         <InfoRow
           label="DeepSeek AI"

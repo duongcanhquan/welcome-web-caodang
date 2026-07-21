@@ -87,6 +87,7 @@ export function LiveTreeView({
           }, 800);
 
           setTotalLeaves((prev) => {
+            // Chỉ tăng tạm; refreshLayout sẽ ghi đè số đúng
             const newTotal = prev + 1;
             if (newTotal % blossomEvery === 0) {
               setBlossom(true);
@@ -107,6 +108,7 @@ export function LiveTreeView({
             setTimeout(() => setToast(null), 4000);
             return newTotal;
           });
+          // Đồng bộ lại số lá từ server (tránh lệch realtime)
         }
       )
       .subscribe();
@@ -130,10 +132,10 @@ export function LiveTreeView({
       />
 
       {!fullscreen && (
-        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 bg-gradient-to-b from-black/45 via-black/20 to-transparent px-4 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="pointer-events-auto min-w-0 space-y-0.5">
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="pointer-events-auto max-w-[70%] rounded-2xl bg-black/40 px-3 py-2 backdrop-blur-md">
             <p className="font-display text-[11px] font-semibold uppercase tracking-widest text-honey">
-              Live · {totalLeaves} lá
+              Live · {totalLeaves} lá · Bấm ảnh xem info
             </p>
             <EventCohortBadge
               batchLabel={batchLabel}

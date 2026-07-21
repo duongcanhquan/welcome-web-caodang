@@ -15,7 +15,11 @@ describe("toOwnedBuffer", () => {
 
     // Smithy checksum path — must not throw
     expect(() =>
-      fromArrayBuffer(owned.buffer, owned.byteOffset, owned.byteLength)
+      fromArrayBuffer(
+        owned.buffer as ArrayBuffer,
+        owned.byteOffset,
+        owned.byteLength
+      )
     ).not.toThrow();
   });
 
@@ -28,7 +32,11 @@ describe("toOwnedBuffer", () => {
     const owned = toOwnedBuffer(sharedView);
     expect(owned.buffer).toBeInstanceOf(ArrayBuffer);
     expect(() =>
-      fromArrayBuffer(owned.buffer, owned.byteOffset, owned.byteLength)
+      fromArrayBuffer(
+        owned.buffer as ArrayBuffer,
+        owned.byteOffset,
+        owned.byteLength
+      )
     ).not.toThrow();
   });
 });

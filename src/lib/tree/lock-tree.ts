@@ -1,11 +1,11 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildTreeLayout, layoutToMosaicLeaves } from "@/lib/tree";
 import type { LayoutSettings } from "@/lib/tree";
+import { hashEventId } from "@/lib/tree/hash-event-id";
 import type { SubmissionForLayout } from "@/lib/tree/types";
 
 /**
- * Admin chốt cây — lưu mosaic (chỉ lá thật) + khoá event.
- * Ít round-trip DB để chốt nhanh.
+ * Admin chốt cây — lưu mosaic trước, rồi mới khoá status (tránh locked không có mosaic).
  */
 export async function lockTree(
   eventId: string,
@@ -16,25 +16,33 @@ export async function lockTree(
 }> {
   const admin = createAdminClient();
 
-  const [{ data: event }, { data: settingsRow }, { data: submissions }, { data: lastMosaic }] =
-    await Promise.all([
-      admin.from("events").select("id, slug, status").eq("id", eventId).single(),
-      admin.from("event_settings").select("*").eq("event_id", eventId).maybeSingle(),
-      admin
-        .from("submissions")
-        .select(
-          "id, token, name, major, wish, leaf_url, photo_url, slot_index, hidden"
-        )
-        .eq("event_id", eventId)
-        .order("slot_index", { ascending: true }),
-      admin
-        .from("mosaics")
-        .select("version, leaves")
-        .eq("event_id", eventId)
-        .order("version", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    ]);
+  const [
+    { data: event },
+    { data: settingsRow },
+    { data: submissions },
+    { data: lastMosaic },
+  ] = await Promise.all([
+    admin.from("events").select("id, slug, status").eq("id", eventId).single(),
+    admin
+      .from("event_settings")
+      .select("*")
+      .eq("event_id", eventId)
+      .maybeSingle(),
+    admin
+      .from("submissions")
+      .select(
+        "id, token, name, major, wish, leaf_url, photo_url, slot_index, hidden"
+      )
+      .eq("event_id", eventId)
+      .order("slot_index", { ascending: true }),
+    admin
+      .from("mosaics")
+      .select("version, leaves")
+      .eq("event_id", eventId)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   if (!event) throw new Error("Sự kiện không tồn tại");
   if (!settingsRow) throw new Error("Không tải được cấu hình");
@@ -47,7 +55,8 @@ export async function lockTree(
             l &&
             typeof l === "object" &&
             !(l as { filler?: boolean }).filler &&
-            (l as { submission_id?: string }).submission_id
+            ((l as { submission_id?: string }).submission_id ||
+              (l as { submissionId?: string }).submissionId)
         ).length
       : 0;
 
@@ -72,28 +81,31 @@ export async function lockTree(
   const layout = buildTreeLayout(
     (submissions ?? []) as SubmissionForLayout[],
     settings,
-    hashId(eventId)
+    hashEventId(eventId)
   );
 
   const version = (lastMosaic?.version ?? 0) + 1;
   const mosaicLeaves = layoutToMosaicLeaves(layout);
 
-  const [{ error: mosaicErr }, { error: lockErr }] = await Promise.all([
-    admin.from("mosaics").insert({
-      event_id: eventId,
-      version,
-      shape: layout.shape,
-      resolution: layout.resolution,
-      trunk_snapshot: layout.trunk,
-      roots_snapshot: layout.roots,
-      leaves: mosaicLeaves,
-    }),
-    admin.from("events").update({ status: "locked" }).eq("id", eventId),
-  ]);
+  const { error: mosaicErr } = await admin.from("mosaics").insert({
+    event_id: eventId,
+    version,
+    shape: layout.shape,
+    resolution: layout.resolution,
+    trunk_snapshot: layout.trunk,
+    roots_snapshot: layout.roots,
+    leaves: mosaicLeaves,
+  });
 
   if (mosaicErr) {
     throw new Error(`Không lưu được mosaic: ${mosaicErr.message}`);
   }
+
+  const { error: lockErr } = await admin
+    .from("events")
+    .update({ status: "locked" })
+    .eq("id", eventId);
+
   if (lockErr) {
     throw new Error(`Không khoá được sự kiện: ${lockErr.message}`);
   }
@@ -104,21 +116,22 @@ export async function lockTree(
   };
 }
 
-/** Khoá nhanh (chỉ status) — mosaic chạy nền sau */
-export async function softLockEvent(eventId: string): Promise<void> {
+/** Chỉ tắt active — chưa locked; dùng khi tạo đợt mới rồi mosaic+lock nền */
+export async function deactivateEvent(eventId: string): Promise<void> {
   const admin = createAdminClient();
   const { error } = await admin
     .from("events")
-    .update({ status: "locked", is_active: false })
-    .eq("id", eventId)
-    .eq("status", "collecting");
+    .update({ is_active: false })
+    .eq("id", eventId);
   if (error) throw new Error(error.message);
 }
 
-function hashId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) {
-    h = (h * 31 + id.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h) || 42;
+/** Rollback nếu soft-path lỗi giữa chừng */
+export async function unlockCollectingEvent(eventId: string): Promise<void> {
+  const admin = createAdminClient();
+  await admin
+    .from("events")
+    .update({ status: "collecting", is_active: false })
+    .eq("id", eventId)
+    .eq("status", "locked");
 }

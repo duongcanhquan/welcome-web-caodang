@@ -1,6 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildTreeLayout, type LayoutSettings } from "@/lib/tree";
-import type { SubmissionForLayout, TreeLayout } from "@/lib/tree/types";
+import { hashEventId } from "@/lib/tree/hash-event-id";
+import { generatePhotoSlotsOnTree } from "@/lib/tree/branch-slots";
+import type {
+  SubmissionForLayout,
+  TreeLayout,
+  TreeLeaf,
+} from "@/lib/tree/types";
 
 export interface EventTreeData {
   eventId: string;
@@ -81,7 +87,41 @@ export async function getLiveTreeLayout(slug: string): Promise<{
   return { layout, event };
 }
 
-/** Layout đã chốt — đọc từ mosaics */
+function readMosaicLeaf(
+  l: Record<string, unknown>,
+  i: number,
+  subMap: Map<string, SubmissionForLayout>
+): TreeLeaf {
+  const subId =
+    (l.submission_id as string | undefined) ??
+    (l.submissionId as string | undefined);
+  const sub = subId ? subMap.get(subId) : undefined;
+  const filler = (l.filler as boolean) ?? !subId;
+  return {
+    id: subId ?? `filler-${i}`,
+    submissionId: subId,
+    filler,
+    slotIndex: i,
+    x: Number(l.x),
+    y: Number(l.y),
+    rotation: Number(l.rotation),
+    scale: Number(l.scale),
+    majorColor:
+      (l.major_color as string | undefined) ??
+      (l.majorColor as string | undefined) ??
+      "#3DBE8B",
+    leafUrl: sub?.leaf_url || sub?.photo_url || null,
+    photoUrl: sub?.photo_url || sub?.leaf_url || null,
+    name: sub?.name,
+    major: sub?.major,
+    wish: sub?.wish,
+    token: sub?.token,
+    fallen: (l.fallen as boolean) ?? false,
+    blossom: (l.blossom as boolean) ?? false,
+  };
+}
+
+/** Layout đã chốt — đọc từ mosaics; bổ sung filler nếu mosaic slim */
 export async function getLockedTreeLayout(slug: string): Promise<{
   layout: TreeLayout;
   event: EventTreeData;
@@ -100,15 +140,12 @@ export async function getLockedTreeLayout(slug: string): Promise<{
     .maybeSingle();
 
   if (!mosaic) {
-    return getLiveTreeLayout(slug) as Promise<{
-      layout: TreeLayout;
-      event: EventTreeData;
-      mosaicVersion: number;
-    } | null>;
+    const live = await getLiveTreeLayout(slug);
+    if (!live) return null;
+    return { ...live, mosaicVersion: 0 };
   }
 
-  const admin2 = createAdminClient();
-  const { data: submissions } = await admin2
+  const { data: submissions } = await admin
     .from("submissions")
     .select(
       "id, token, name, major, wish, leaf_url, photo_url, slot_index, hidden"
@@ -119,91 +156,73 @@ export async function getLockedTreeLayout(slug: string): Promise<{
     (submissions ?? []).map((s) => [s.id, s as SubmissionForLayout])
   );
 
-  const leaves = (mosaic.leaves as Array<Record<string, unknown>>).map(
-    (l, i) => {
-      const subId = l.submission_id as string | undefined;
-      const sub = subId ? subMap.get(subId) : undefined;
-      return {
-        id: subId ?? `filler-${i}`,
-        submissionId: subId,
-        filler: (l.filler as boolean) ?? false,
-        slotIndex: i,
-        x: Number(l.x),
-        y: Number(l.y),
-        rotation: Number(l.rotation),
-        scale: Number(l.scale),
-        majorColor: (l.major_color as string) ?? "#3DBE8B",
-        leafUrl: sub?.leaf_url || sub?.photo_url || null,
-        photoUrl: sub?.photo_url || sub?.leaf_url || null,
-        name: sub?.name,
-        major: sub?.major,
-        wish: sub?.wish,
-        token: sub?.token,
-        fallen: (l.fallen as boolean) ?? false,
-        blossom: (l.blossom as boolean) ?? false,
-      };
-    }
-  );
+  const mosaicRows = (mosaic.leaves as Array<Record<string, unknown>>) ?? [];
+  const realLeaves = mosaicRows
+    .map((l, i) => readMosaicLeaf(l, i, subMap))
+    .filter((l) => !l.filler && l.submissionId);
 
-  // Mosaic slim (chỉ lá thật) → bổ sung filler từ buildTreeLayout, giữ toạ độ đã chốt
-  const realCount = leaves.filter((l) => !l.filler && l.submissionId).length;
-  const resolution = Number(mosaic.resolution) || realCount;
-  if (realCount > 0 && realCount < resolution) {
-    const live = buildTreeLayout(
-      (submissions ?? []) as SubmissionForLayout[],
-      event.settings,
+  const resolution = Number(mosaic.resolution) || Math.max(realLeaves.length, 40);
+  const brandColor =
+    (event.settings.trunkConfig.brandColor as string) ?? "#3DBE8B";
+
+  let leaves: TreeLeaf[] = [...realLeaves];
+
+  // Slim mosaic: thêm filler vào slot trống (không đè lên lá đã chốt)
+  if (realLeaves.length < resolution) {
+    const slots = generatePhotoSlotsOnTree(
+      resolution,
       hashEventId(event.eventId)
     );
-    const byId = new Map(
-      leaves.filter((l) => l.submissionId).map((l) => [l.submissionId!, l])
-    );
-    for (const leaf of live.leaves) {
-      if (leaf.filler) {
-        leaves.push(leaf);
-        continue;
-      }
-      const locked = leaf.submissionId
-        ? byId.get(leaf.submissionId)
-        : undefined;
-      if (locked) {
-        leaf.x = locked.x;
-        leaf.y = locked.y;
-        leaf.rotation = locked.rotation;
-        leaf.scale = locked.scale;
-        leaf.fallen = locked.fallen;
-        leaf.blossom = locked.blossom;
-      }
+    const occupied = realLeaves.map((l) => ({ x: l.x, y: l.y }));
+    let fillerIdx = 0;
+    for (let i = 0; i < slots.length; i++) {
+      const slot = slots[i];
+      const tooClose = occupied.some(
+        (o) => Math.hypot(o.x - slot.x, o.y - slot.y) < 0.04
+      );
+      if (tooClose) continue;
+      leaves.push({
+        id: `filler-${fillerIdx++}`,
+        filler: true,
+        slotIndex: i,
+        x: slot.x,
+        y: slot.y,
+        rotation: slot.rotation,
+        scale: slot.scale * 0.85,
+        majorColor: brandColor,
+        leafUrl: event.settings.fillerAssets[0] ?? null,
+      });
+      occupied.push({ x: slot.x, y: slot.y });
     }
-    return {
-      layout: {
-        ...live,
-        leaves: live.leaves,
-        totalSubmissions: realCount,
-      },
-      event,
-      mosaicVersion: mosaic.version,
-    };
   }
+
+  const trunkSnap = mosaic.trunk_snapshot as
+    | TreeLayout["trunk"]
+    | null
+    | undefined;
+  const rootsSnap = mosaic.roots_snapshot as
+    | TreeLayout["roots"]
+    | null
+    | undefined;
 
   const layout: TreeLayout = {
     shape: mosaic.shape,
     resolution,
     dimensions: { width: 900, height: 1100 },
-    canopy: { x: 0.08, y: 0.04, w: 0.84, h: 0.52 },
-    trunk: {
-      x: 0.42,
-      y: 0.52,
-      w: 0.16,
-      h: 0.28,
-      color:
-        (event.settings.trunkConfig.brandColor as string) ?? "#3DBE8B",
+    canopy: { x: 0.02, y: 0.06, w: 0.96, h: 0.42 },
+    trunk: trunkSnap ?? {
+      x: 0.44,
+      y: 0.48,
+      w: 0.12,
+      h: 0.32,
+      color: brandColor,
     },
-    roots: {
+    roots: rootsSnap ?? {
       text: event.settings.rootsText,
       y: 0.88,
     },
     leaves,
-    totalSubmissions: realCount,
+    totalSubmissions: realLeaves.length,
     blossomMilestone: null,
   };
 
@@ -219,12 +238,4 @@ export async function getTreeLayoutForEvent(slug: string) {
     return getLockedTreeLayout(slug);
   }
   return getLiveTreeLayout(slug);
-}
-
-function hashEventId(id: string): number {
-  let h = 0;
-  for (let i = 0; i < id.length; i++) {
-    h = (h * 31 + id.charCodeAt(i)) | 0;
-  }
-  return Math.abs(h);
 }

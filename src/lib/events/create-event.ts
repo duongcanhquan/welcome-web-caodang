@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { EVENT_MAJORS } from "@/lib/constants";
 import { composeEventName } from "@/lib/events/labels";
 import { isValidSlug, normalizeSlug } from "@/lib/events/slug";
-import { softLockEvent } from "@/lib/tree/lock-tree";
+import { deactivateEvent } from "@/lib/tree/lock-tree";
 import type { EventSettings } from "@/lib/types/database";
 
 export { normalizeSlug } from "@/lib/events/slug";
@@ -50,7 +50,7 @@ export async function createEvent(input: {
   slug: string;
   batchLabel: string;
   classLabel?: string;
-  /** Khoá nhanh đợt đang chạy (mosaic chạy nền sau) */
+  /** Khoá đợt đang chạy sau khi tạo xong (mosaic+lock chạy nền) */
   lockActiveFirst?: boolean;
 }): Promise<{
   id: string;
@@ -58,7 +58,6 @@ export async function createEvent(input: {
   name: string;
   batch_label: string;
   class_label: string;
-  /** Event cũ cần build mosaic nền — API gọi after() */
   mosaicAfterId: string | null;
 }> {
   const batchLabel = input.batchLabel.trim();
@@ -87,16 +86,15 @@ export async function createEvent(input: {
   if (existing) throw new Error(`Slug "${slug}" đã tồn tại`);
 
   let mosaicAfterId: string | null = null;
+  const prevActiveId =
+    active?.status === "collecting" && input.lockActiveFirst
+      ? active.id
+      : null;
 
-  if (active?.status === "collecting") {
-    if (!input.lockActiveFirst) {
-      throw new Error(
-        "Cây đang chạy chưa chốt. Bật «Khoá cây hiện tại trước» hoặc chốt cây trong tab Tổng quan."
-      );
-    }
-    // Soft lock tức thì — không chờ mosaic (tránh «Đang tạo…» lâu)
-    await softLockEvent(active.id);
-    mosaicAfterId = active.id;
+  if (active?.status === "collecting" && !input.lockActiveFirst) {
+    throw new Error(
+      "Cây đang chạy chưa chốt. Bật «Khoá cây hiện tại trước» hoặc chốt cây trong tab Tổng quan."
+    );
   }
 
   let sourceSettings: EventSettings | null = null;
@@ -109,6 +107,7 @@ export async function createEvent(input: {
     sourceSettings = data as EventSettings | null;
   }
 
+  // Tạo đợt mới trước — chưa soft-lock đợt cũ (tránh locked không mosaic nếu fail)
   const { data: created, error: createErr } = await admin
     .from("events")
     .insert({
@@ -161,11 +160,17 @@ export async function createEvent(input: {
     throw new Error(settingsErr.message);
   }
 
-  const { error: clearErr } = await admin
-    .from("events")
-    .update({ is_active: false })
-    .eq("is_active", true);
-  if (clearErr) throw new Error(clearErr.message);
+  // Tắt active cũ (vẫn collecting) → bật đợt mới; mosaic+lock đợt cũ chạy nền
+  if (prevActiveId) {
+    await deactivateEvent(prevActiveId);
+    mosaicAfterId = prevActiveId;
+  } else {
+    const { error: clearErr } = await admin
+      .from("events")
+      .update({ is_active: false })
+      .eq("is_active", true);
+    if (clearErr) throw new Error(clearErr.message);
+  }
 
   const { error: activateErr } = await admin
     .from("events")

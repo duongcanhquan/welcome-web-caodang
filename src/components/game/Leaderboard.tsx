@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { tryCreateClient } from "@/lib/supabase/client";
 import { motion } from "motion/react";
 
 interface LeaderboardEntry {
@@ -26,7 +26,14 @@ export function Leaderboard({ eventId }: LeaderboardProps) {
   useEffect(() => {
     fetchBoard();
 
-    const supabase = createClient();
+    const supabase = tryCreateClient();
+    if (!supabase) {
+      const poll = setInterval(() => {
+        void fetchBoard();
+      }, 10000);
+      return () => clearInterval(poll);
+    }
+
     const channel = supabase
       .channel(`flappy-${eventId}`)
       .on(

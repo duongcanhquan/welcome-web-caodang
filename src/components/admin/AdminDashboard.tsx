@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { createClient } from "@/lib/supabase/client";
+import { tryCreateClient } from "@/lib/supabase/client";
 import { GradientText } from "@/components/motion";
 import type { EventSettingsSnapshot } from "./AdminEventOverview";
 import { AdminEventOverview } from "./AdminEventOverview";
@@ -70,7 +70,11 @@ export function AdminDashboard({
   };
 
   const logout = async () => {
-    await createClient().auth.signOut();
+    try {
+      await tryCreateClient()?.auth.signOut();
+    } catch {
+      /* ignore */
+    }
     window.location.href = "/admin";
   };
 

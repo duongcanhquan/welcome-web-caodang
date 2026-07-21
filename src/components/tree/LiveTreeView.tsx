@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
 import { TreeCanvas } from "./TreeCanvas";
-import { createClient } from "@/lib/supabase/client";
+import { tryCreateClient } from "@/lib/supabase/client";
 
 interface LiveTreeViewProps {
   eventSlug: string;
@@ -36,7 +36,9 @@ export function LiveTreeView({
   }, [eventSlug]);
 
   useEffect(() => {
-    const supabase = createClient();
+    const supabase = tryCreateClient();
+    if (!supabase) return;
+
     let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     const channel = supabase

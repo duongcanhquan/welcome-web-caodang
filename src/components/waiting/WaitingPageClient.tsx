@@ -17,7 +17,7 @@ import type { TreeLayout } from "@/lib/tree/types";
 import type { LifePathContent } from "@/lib/numerology";
 import type { NumerologyResult } from "@/lib/numerology";
 import { getMajorMatchMessage } from "@/lib/numerology";
-import { createClient } from "@/lib/supabase/client";
+import { tryCreateClient } from "@/lib/supabase/client";
 
 interface MeData {
   submission: {
@@ -121,9 +121,27 @@ export function WaitingPageClient({
   useEffect(() => {
     if (!data?.submission.events.id) return;
 
-    const supabase = createClient();
+    const supabase = tryCreateClient();
     const eventId = data.submission.events.id;
     const slug = data.submission.events.slug;
+
+    // Không có NEXT_PUBLIC Supabase → bỏ realtime, poll nhẹ trạng thái khoá
+    if (!supabase) {
+      const poll = setInterval(() => {
+        void fetch(`/api/me/${token}`)
+          .then(async (res) => {
+            if (!res.ok) return;
+            const json = (await res.json()) as MeData;
+            setTotalLeaves(json.totalLeaves);
+            if (json.submission.events.status === "locked") {
+              setLocked(true);
+              setCountdown((c) => (c === null ? 5 : c));
+            }
+          })
+          .catch(() => {});
+      }, 8000);
+      return () => clearInterval(poll);
+    }
 
     let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -174,7 +192,7 @@ export function WaitingPageClient({
       if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
       supabase.removeChannel(channel);
     };
-  }, [data?.submission.events.id, data?.submission.events.slug]);
+  }, [data?.submission.events.id, data?.submission.events.slug, token]);
 
   useEffect(() => {
     if (countdown === null) return;

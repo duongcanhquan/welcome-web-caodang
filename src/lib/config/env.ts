@@ -1,6 +1,9 @@
 /**
- * Cấu hình biến môi trường — đọc từ .env.local, không hard-code ngưỡng.
+ * Cấu hình biến môi trường — đọc từ .env.local / Vercel.
  * Ngưỡng sự kiện (fillRatio, leavesMin, …) nằm trong bảng event_settings.
+ *
+ * Lưu ý Next.js: NEXT_PUBLIC_* được inline lúc build vào bundle trình duyệt.
+ * Sau khi thêm/sửa trên Vercel phải Redeploy để client nhận được.
  */
 
 function required(name: string): string {
@@ -15,12 +18,29 @@ function optional(name: string, fallback = ""): string {
   return process.env[name] ?? fallback;
 }
 
+/**
+ * Đọc biến public tại thời điểm gọi.
+ * Trên client, Next đã thay process.env.NEXT_PUBLIC_* bằng chuỗi lúc build.
+ */
+function readPublic(name: string, fallback = ""): string {
+  const value = process.env[name];
+  return (value && value.trim()) || fallback;
+}
+
 /** Biến public — dùng được ở client */
 export const publicEnv = {
-  supabaseUrl: optional("NEXT_PUBLIC_SUPABASE_URL"),
-  supabaseAnonKey: optional("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
-  r2PublicUrl: optional("NEXT_PUBLIC_R2_PUBLIC_URL"),
-  appUrl: optional("NEXT_PUBLIC_APP_URL", "http://localhost:3000"),
+  get supabaseUrl() {
+    return readPublic("NEXT_PUBLIC_SUPABASE_URL");
+  },
+  get supabaseAnonKey() {
+    return readPublic("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  },
+  get r2PublicUrl() {
+    return readPublic("NEXT_PUBLIC_R2_PUBLIC_URL");
+  },
+  get appUrl() {
+    return readPublic("NEXT_PUBLIC_APP_URL", "http://localhost:3000");
+  },
 } as const;
 
 /** Biến server-only — chỉ dùng trong API routes / Server Components */

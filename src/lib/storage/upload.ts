@@ -1,4 +1,4 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
@@ -108,3 +108,28 @@ export async function uploadSubmissionImages(
 
   return { leafUrl, photoUrl, leafKey, photoKey };
 }
+
+/** Xoá ảnh leaf/photo trên R2 (best-effort — không chặn xoá DB nếu fail) */
+export async function deleteSubmissionImages(
+  submissionId: string
+): Promise<void> {
+  if (!hasR2Env()) return;
+
+  const client = getR2Client();
+  const bucket = process.env.R2_BUCKET_NAME!;
+  const keys = [
+    `submissions/${submissionId}/leaf.webp`,
+    `submissions/${submissionId}/photo.webp`,
+  ];
+
+  await Promise.all(
+    keys.map((Key) =>
+      client
+        .send(new DeleteObjectCommand({ Bucket: bucket, Key }))
+        .catch(() => {
+          /* object có thể không tồn tại */
+        })
+    )
+  );
+}
+

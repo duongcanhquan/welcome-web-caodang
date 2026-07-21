@@ -47,6 +47,8 @@ export function AdminSubmissionsList({
   const [subs, setSubs] = useState<AdminSubmission[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -59,6 +61,28 @@ export function AdminSubmissionsList({
   useEffect(() => {
     load();
   }, [load]);
+
+  const removeSubmission = async (s: AdminSubmission) => {
+    const ok = window.confirm(
+      `Xoá vĩnh viễn bài của «${s.name}»?\nẢnh, thần số học và điểm game sẽ bị xoá — không hoàn tác.`
+    );
+    if (!ok) return;
+
+    setDeletingId(s.id);
+    setActionError(null);
+    try {
+      const res = await fetch(`/api/admin/submissions/${s.id}`, {
+        method: "DELETE",
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error ?? "Xoá thất bại");
+      setSubs((prev) => prev.filter((x) => x.id !== s.id));
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Xoá thất bại");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,7 +115,8 @@ export function AdminSubmissionsList({
           </h2>
           <p className="text-base text-ink-muted">
             {filtered.length} / {subs.length} bạn · hiển thị{" "}
-            {subs.filter((s) => !s.hidden).length} lá trên cây
+            {subs.filter((s) => !s.hidden).length} lá trên cây · có thể{" "}
+            <strong className="text-coral">xoá</strong> bài nộp
           </p>
         </div>
         <input
@@ -102,6 +127,12 @@ export function AdminSubmissionsList({
           className="w-full max-w-xs rounded-card border-2 border-peach/20 bg-surface px-4 py-2 text-base focus:border-peach focus:outline-none"
         />
       </div>
+
+      {actionError && (
+        <p className="rounded-lg bg-coral/10 px-3 py-2 text-base text-coral">
+          {actionError}
+        </p>
+      )}
 
       {filtered.length === 0 ? (
         <p className="rounded-card bg-surface-warm py-12 text-center text-ink-muted">
@@ -121,7 +152,7 @@ export function AdminSubmissionsList({
                 <th className="px-3 py-3">Ngày sinh</th>
                 <th className="px-3 py-3">Nộp lúc</th>
                 <th className="px-3 py-3">Trạng thái</th>
-                <th className="px-3 py-3">Xem</th>
+                <th className="px-3 py-3">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -165,13 +196,23 @@ export function AdminSubmissionsList({
                     )}
                   </td>
                   <td className="px-3 py-3">
-                    <Link
-                      href={`/me/${s.token}`}
-                      target="_blank"
-                      className="text-sm font-semibold text-peach underline"
-                    >
-                      Thần số
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Link
+                        href={`/me/${s.token}`}
+                        target="_blank"
+                        className="text-sm font-semibold text-peach underline"
+                      >
+                        Thần số
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={deletingId === s.id}
+                        onClick={() => void removeSubmission(s)}
+                        className="rounded-lg border border-coral/40 px-2 py-1 text-sm font-bold text-coral transition hover:bg-coral/10 disabled:opacity-50"
+                      >
+                        {deletingId === s.id ? "Đang xoá…" : "Xoá"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

@@ -11,6 +11,7 @@ interface AdminModerationGridProps {
 export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
   const [subs, setSubs] = useState<AdminSubmission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -25,12 +26,40 @@ export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
   }, [load]);
 
   const toggleHidden = async (id: string, hidden: boolean) => {
-    await fetch(`/api/admin/submissions/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ hidden: !hidden }),
-    });
-    load();
+    setBusyId(id);
+    try {
+      await fetch(`/api/admin/submissions/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hidden: !hidden }),
+      });
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const removeSubmission = async (s: AdminSubmission) => {
+    const ok = window.confirm(
+      `Xoá vĩnh viễn «${s.name}»?\nẢnh và dữ liệu thần số sẽ bị xoá — không hoàn tác.`
+    );
+    if (!ok) return;
+
+    setBusyId(s.id);
+    try {
+      const res = await fetch(`/api/admin/submissions/${s.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        throw new Error(data.error ?? "Xoá thất bại");
+      }
+      setSubs((prev) => prev.filter((x) => x.id !== s.id));
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : "Xoá thất bại");
+    } finally {
+      setBusyId(null);
+    }
   };
 
   if (loading) {
@@ -60,7 +89,8 @@ export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
           Kiểm duyệt ảnh
         </h2>
         <p className="text-base text-ink-muted">
-          Bấm <strong className="text-coral">Ẩn</strong> để gỡ lá khỏi cây ·{" "}
+          <strong className="text-coral">Ẩn</strong> = gỡ lá khỏi cây ·{" "}
+          <strong className="text-coral">Xoá</strong> = xoá vĩnh viễn ·{" "}
           {subs.filter((s) => !s.hidden).length} đang hiển thị
         </p>
       </div>
@@ -91,15 +121,26 @@ export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
               <p className="truncate text-base font-semibold">{s.name}</p>
               <p className="truncate text-sm text-ink-muted">{s.major}</p>
             </div>
-            <button
-              type="button"
-              onClick={() => toggleHidden(s.id, s.hidden)}
-              className={`absolute right-2 top-2 rounded-full px-2 py-1 text-sm font-bold text-white ${
-                s.hidden ? "bg-sprout" : "bg-coral"
-              }`}
-            >
-              {s.hidden ? "Hiện" : "Ẩn"}
-            </button>
+            <div className="absolute right-2 top-2 flex flex-col gap-1">
+              <button
+                type="button"
+                disabled={busyId === s.id}
+                onClick={() => void toggleHidden(s.id, s.hidden)}
+                className={`rounded-full px-2 py-1 text-sm font-bold text-white disabled:opacity-50 ${
+                  s.hidden ? "bg-sprout" : "bg-coral"
+                }`}
+              >
+                {s.hidden ? "Hiện" : "Ẩn"}
+              </button>
+              <button
+                type="button"
+                disabled={busyId === s.id}
+                onClick={() => void removeSubmission(s)}
+                className="rounded-full bg-foreground/85 px-2 py-1 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {busyId === s.id ? "…" : "Xoá"}
+              </button>
+            </div>
           </motion.div>
         ))}
       </div>

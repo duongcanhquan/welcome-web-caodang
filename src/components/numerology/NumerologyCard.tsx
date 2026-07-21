@@ -97,7 +97,7 @@ export function NumerologyCard({
         </StaggerItem>
 
         <StaggerItem>
-          <p className="text-center text-sm leading-relaxed text-white/85">
+          <p className="whitespace-pre-line text-left text-sm leading-relaxed text-white/85">
             {aiText ?? content.description}
           </p>
         </StaggerItem>

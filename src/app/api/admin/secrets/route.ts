@@ -43,7 +43,8 @@ export async function PUT(req: NextRequest) {
     payload.ai_enabled = body.aiEnabled;
   }
   if (body.numerologyPrompt !== undefined) {
-    payload.numerology_prompt = body.numerologyPrompt;
+    const trimmed = body.numerologyPrompt.trim();
+    payload.numerology_prompt = trimmed || null;
   }
   if (body.personalizationPrompt !== undefined) {
     payload.personalization_prompt = body.personalizationPrompt;

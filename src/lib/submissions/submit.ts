@@ -46,6 +46,7 @@ export interface SubmissionResult {
   name: string;
   major: string;
   wish: string;
+  dob: string;
   numerology: NumerologyResult;
 }
 
@@ -217,7 +218,7 @@ export async function handleSubmission(
 
   const personalization = await generatePersonalization(
     event.id,
-    { name, major, wish, numerology },
+    { name, major, wish, dob, numerology },
     { skipAi: true }
   );
 
@@ -242,6 +243,7 @@ export async function handleSubmission(
     name,
     major,
     wish,
+    dob,
     numerology,
   };
 }
@@ -252,6 +254,7 @@ export async function enrichSubmissionAi(result: SubmissionResult): Promise<void
     name: result.name,
     major: result.major,
     wish: result.wish,
+    dob: result.dob,
     numerology: result.numerology,
   });
 

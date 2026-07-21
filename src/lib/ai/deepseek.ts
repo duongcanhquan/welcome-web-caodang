@@ -1,6 +1,9 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { NumerologyResult } from "@/lib/numerology";
 import { LIFE_PATH_CONTENT, getMajorMatchMessage } from "@/lib/numerology";
+import { DEFAULT_NUMEROLOGY_PROMPT } from "@/lib/ai/numerology-prompt";
+
+export { DEFAULT_NUMEROLOGY_PROMPT } from "@/lib/ai/numerology-prompt";
 
 export interface DeepSeekMessage {
   role: "system" | "user" | "assistant";
@@ -11,6 +14,8 @@ export interface PersonalizationInput {
   name: string;
   major: string;
   wish: string;
+  /** ISO YYYY-MM-DD — hệ thống tự format dd/mm/yyyy khi gửi AI */
+  dob: string;
   numerology: NumerologyResult;
 }
 
@@ -20,12 +25,13 @@ export interface PersonalizationOutput {
   funFact: string;
 }
 
-const DEFAULT_NUMEROLOGY_PROMPT = `Bạn là cố vấn vui vẻ cho sinh viên mới vào Cao đẳng Việt Mỹ.
-Viết bằng tiếng Việt, giọng thân thiện, khích lệ, KHÔNG phán xét hay mê tín cực đoan.
-Luôn nhắc "cho vui & tham khảo".
-Trả lời JSON với keys: numerologyText (2-3 câu), wishComment (1 câu về ước mơ), funFact (1 câu thú vị).`;
+function formatDobDisplay(iso: string): string {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
 
-/** Gọi DeepSeek Chat API — timeout 8s để không treo */
+/** Gọi DeepSeek Chat API */
 export async function callDeepSeek(
   apiKey: string,
   model: string,
@@ -40,11 +46,11 @@ export async function callDeepSeek(
     body: JSON.stringify({
       model,
       messages,
-      temperature: 0.8,
-      max_tokens: 600,
+      temperature: 0.85,
+      max_tokens: 1400,
       response_format: { type: "json_object" },
     }),
-    signal: AbortSignal.timeout(8_000),
+    signal: AbortSignal.timeout(20_000),
   });
 
   if (!res.ok) {
@@ -96,16 +102,23 @@ export async function generatePersonalization(
       secrets.personalization_prompt ||
       DEFAULT_NUMEROLOGY_PROMPT;
 
-    const userContent = JSON.stringify({
+    const userPayload = {
       name: input.name,
+      dob: input.dob,
+      dobDisplay: formatDobDisplay(input.dob),
       major: input.major,
       wish: input.wish,
       lifePath: input.numerology.lifePath,
-      lifePathKeywords: lp.keywords,
+      lifePathTitle: lp.keywords,
+      lifePathSummary: lp.description,
       birthDay: input.numerology.birthDay,
       personalYear2026: input.numerology.personalYear,
-      majorMatch: getMajorMatchMessage(input.numerology.lifePath, input.major),
-    });
+      majorMatchHint: getMajorMatchMessage(
+        input.numerology.lifePath,
+        input.major
+      ),
+      suggestedCareers: lp.careers,
+    };
 
     const raw = await callDeepSeek(
       secrets.deepseek_api_key,
@@ -114,7 +127,7 @@ export async function generatePersonalization(
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Cá nhân hoá cho sinh viên:\n${userContent}`,
+          content: `Dữ liệu sinh viên (dùng đúng các field này, không bịa số):\n${JSON.stringify(userPayload, null, 2)}`,
         },
       ]
     );

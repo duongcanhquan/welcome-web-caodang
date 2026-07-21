@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { AnimatedButton } from "@/components/motion";
+import { DEFAULT_NUMEROLOGY_PROMPT } from "@/lib/ai/numerology-prompt";
 
 interface AdminSecretsFormProps {
   eventId: string;
@@ -38,11 +39,12 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
         eventId,
         deepseekModel: model,
         aiEnabled,
-        numerologyPrompt: numerologyPrompt || undefined,
+        // Chuỗi rỗng = về prompt mặc định hệ thống
+        numerologyPrompt,
       };
       if (apiKey) body.deepseekApiKey = apiKey;
 
-      const res = await fetch("/api/admin/secrets", {
+      const res = await fetch(`/api/admin/secrets`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -117,13 +119,33 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-base font-semibold">Prompt thần số học (tuỳ chọn)</label>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-base font-semibold">Prompt thần số học</label>
+            <button
+              type="button"
+              onClick={() => setNumerologyPrompt(DEFAULT_NUMEROLOGY_PROMPT)}
+              className="text-sm font-semibold text-peach underline-offset-2 hover:underline"
+            >
+              Chèn prompt Gen Z chuẩn
+            </button>
+          </div>
+          <p className="rounded-lg bg-brand-navy/5 px-3 py-2 text-sm leading-relaxed text-ink-muted">
+            <strong className="text-foreground">Không cần điền tên / ngày sinh</strong>{" "}
+            vào prompt. Mỗi lần SV gửi form, hệ thống tự gửi JSON gồm{" "}
+            <code className="text-xs">name</code>,{" "}
+            <code className="text-xs">dobDisplay</code> (dd/mm/yyyy),{" "}
+            <code className="text-xs">lifePath</code>,{" "}
+            <code className="text-xs">major</code>,{" "}
+            <code className="text-xs">wish</code>, … Ô này chỉ là{" "}
+            <em>system prompt</em> (vai trò + cấu trúc bài). Để trống = dùng mặc
+            định Gen Z của hệ thống.
+          </p>
           <textarea
             value={numerologyPrompt}
             onChange={(e) => setNumerologyPrompt(e.target.value)}
-            rows={4}
-            placeholder="Để trống = dùng prompt mặc định"
-            className="resize-none rounded-card border-2 border-peach/20 px-4 py-3 text-base focus:border-peach focus:outline-none"
+            rows={14}
+            placeholder="Để trống = prompt Gen Z mặc định. Bấm «Chèn prompt Gen Z chuẩn» để xem/sửa."
+            className="resize-y rounded-card border-2 border-peach/20 px-4 py-3 font-mono text-sm leading-relaxed focus:border-peach focus:outline-none"
           />
         </div>
 

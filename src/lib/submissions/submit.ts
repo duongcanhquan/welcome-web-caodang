@@ -248,8 +248,30 @@ export async function handleSubmission(
   };
 }
 
-/** Enrich AI sau khi đã trả token cho client */
+/** Enrich AI sau khi đã trả token cho client — CHỈ CHẠY MỘT LẦN mỗi submission */
 export async function enrichSubmissionAi(result: SubmissionResult): Promise<void> {
+  const admin = createAdminClient();
+
+  const { data: existing } = await admin
+    .from("submission_insights")
+    .select("ai_generated_at, ai_numerology")
+    .eq("submission_id", result.submissionId)
+    .maybeSingle();
+
+  // Đã có bản AI lưu trong Supabase → không gọi DeepSeek lần 2/3
+  if (existing?.ai_generated_at) {
+    return;
+  }
+  // Bản dài đã lưu (legacy / race) cũng coi như xong
+  if ((existing?.ai_numerology?.trim().length ?? 0) >= 1800) {
+    await admin
+      .from("submission_insights")
+      .update({ ai_generated_at: new Date().toISOString() })
+      .eq("submission_id", result.submissionId)
+      .is("ai_generated_at", null);
+    return;
+  }
+
   const personalization = await generatePersonalization(result.eventId, {
     name: result.name,
     major: result.major,
@@ -258,8 +280,8 @@ export async function enrichSubmissionAi(result: SubmissionResult): Promise<void
     numerology: result.numerology,
   });
 
-  const admin = createAdminClient();
-  await admin
+  // Conditional update — nếu request khác đã ghi rồi thì không ghi đè
+  const { data: updated } = await admin
     .from("submission_insights")
     .update({
       ai_numerology: personalization.numerologyText,
@@ -269,5 +291,10 @@ export async function enrichSubmissionAi(result: SubmissionResult): Promise<void
       },
       ai_generated_at: new Date().toISOString(),
     })
-    .eq("submission_id", result.submissionId);
+    .eq("submission_id", result.submissionId)
+    .is("ai_generated_at", null)
+    .select("submission_id");
+
+  // Nếu không update được hàng nào = đã có bản khác ghi trước → bỏ qua
+  void updated;
 }

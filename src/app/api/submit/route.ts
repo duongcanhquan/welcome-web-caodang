@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     const result = await handleSubmission(formData, ip);
 
-    // AI chạy sau response — không làm sinh viên chờ DeepSeek
+    // AI chạy đúng 1 lần sau submit — lần sau chỉ đọc Supabase
     after(() => {
       void enrichSubmissionAi(result).catch(() => {
         /* fallback tĩnh đã có trong insight */

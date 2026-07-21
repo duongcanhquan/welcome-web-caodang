@@ -88,6 +88,21 @@ export function WaitingPageClient({
     setLocked(json.submission.events.status === "locked");
     setFetchDone(true);
 
+    // Đã có bản AI trong Supabase → hiện ngay, không chờ / không gọi AI lại
+    const alreadyAi =
+      Boolean(json.insight?.ai_generated_at) ||
+      (json.insight?.ai_numerology?.trim().length ?? 0) >= 1800;
+    if (alreadyAi) {
+      setMinWaitDone(true);
+      setRevealNumerology(true);
+      // Bỏ ?new=1 để F5/mở lại không vào màn chờ tạo mới
+      if (typeof window !== "undefined" && window.location.search.includes("new=1")) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("new");
+        window.history.replaceState(null, "", url.pathname + url.search);
+      }
+    }
+
     // Cây tải nền — không chặn hiện thần số học
     const slug = json.submission.events.slug;
     void fetch(`/api/tree/${slug}`)
@@ -103,10 +118,11 @@ export function WaitingPageClient({
     load();
   }, [load]);
 
-  // Poll để nhận bản AI dài (~800–1200 từ, có thể mất 30–55s)
+  // Poll CHỈ khi vừa nộp và chưa có AI — không regenerate
   useEffect(() => {
     if (!isNewSubmission || !fetchDone) return;
     if (data?.insight?.ai_generated_at) return;
+    if ((data?.insight?.ai_numerology?.trim().length ?? 0) >= 1800) return;
 
     let tries = 0;
     const id = setInterval(async () => {
@@ -118,13 +134,30 @@ export function WaitingPageClient({
       const res = await fetch(`/api/me/${token}`);
       if (!res.ok) return;
       const json = (await res.json()) as MeData;
-      if (json.insight?.ai_generated_at) {
+      const ready =
+        Boolean(json.insight?.ai_generated_at) ||
+        (json.insight?.ai_numerology?.trim().length ?? 0) >= 1800;
+      if (ready) {
         setData(json);
+        setRevealNumerology(true);
         clearInterval(id);
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          if (url.searchParams.has("new")) {
+            url.searchParams.delete("new");
+            window.history.replaceState(null, "", url.pathname + url.search);
+          }
+        }
       }
     }, 3000);
     return () => clearInterval(id);
-  }, [isNewSubmission, fetchDone, data?.insight?.ai_generated_at, token]);
+  }, [
+    isNewSubmission,
+    fetchDone,
+    data?.insight?.ai_generated_at,
+    data?.insight?.ai_numerology,
+    token,
+  ]);
 
   useEffect(() => {
     if (!data?.submission.events.id) return;
@@ -237,12 +270,12 @@ export function WaitingPageClient({
     );
   }
 
+  // Mở lại lần 2+ — chỉ chờ đọc Supabase, không chạy lại AI
   if (!isNewSubmission && !fetchDone) {
     return (
-      <NumerologyWaitingScreen
-        minDurationMs={3000}
-        onComplete={() => setFetchDone(true)}
-      />
+      <div className="flex min-h-dvh items-center justify-center bg-brand-navy/95 px-6">
+        <p className="text-center text-white/80">Đang tải thần số học đã lưu…</p>
+      </div>
     );
   }
 

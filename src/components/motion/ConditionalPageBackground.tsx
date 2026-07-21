@@ -8,6 +8,7 @@ export function ConditionalPageBackground() {
   const pathname = usePathname();
   if (
     pathname === "/" ||
+    pathname.startsWith("/join") ||
     pathname.startsWith("/v/") ||
     pathname.startsWith("/live/") ||
     pathname.startsWith("/demo/") ||

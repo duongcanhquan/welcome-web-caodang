@@ -16,9 +16,11 @@ interface JoinFormProps {
   majors: string[];
   eventSlug?: string;
   maxFileMb?: number;
-  /** Mở panel prompt tạo ảnh (giống trang chủ) */
   onOpenPrompt?: () => void;
 }
+
+const fieldClass =
+  "w-full rounded-xl border-2 border-brand-navy/10 bg-surface-warm/90 px-4 py-3 text-foreground outline-none transition focus:border-brand-navy/40 focus:bg-white";
 
 export function JoinForm({
   majors,
@@ -46,7 +48,6 @@ export function JoinForm({
         return;
       }
 
-      // Preview ngay — cảm giác bấm tức thì
       const quickUrl = URL.createObjectURL(file);
       setPreview((prev) => {
         if (prev) URL.revokeObjectURL(prev);
@@ -122,7 +123,6 @@ export function JoinForm({
 
         saveSubmissionToken(data.token);
 
-        // Confetti nhẹ — không chặn điều hướng
         try {
           confetti({
             particleCount: 60,
@@ -134,8 +134,9 @@ export function JoinForm({
           /* ignore */
         }
 
-        // Điều hướng cứng — nhanh hơn App Router soft nav khi tải cao
-        window.location.assign(`/me/${data.token}?leaf=${data.leafNumber}&new=1`);
+        window.location.assign(
+          `/me/${data.token}?leaf=${data.leafNumber}&new=1`
+        );
       } catch (err) {
         setError(err instanceof Error ? err.message : "Lỗi không xác định");
         setLoading(false);
@@ -152,9 +153,9 @@ export function JoinForm({
       : 0;
 
   return (
-    <form onSubmit={onSubmit} className="flex w-full max-w-md flex-col gap-5">
+    <form onSubmit={onSubmit} className="flex w-full flex-col gap-5">
       <div className="flex flex-col items-center gap-3">
-        <div className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-4 border-peach bg-white shadow-[0_8px_28px_rgb(255_111_165_/_28%)]">
+        <div className="relative flex h-44 w-44 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-gradient-to-br from-peach/25 via-honey/20 to-sprout/20 shadow-[0_12px_40px_rgb(255_111_165_/_28%)] ring-4 ring-peach/20">
           {compressing && !preview ? (
             <span className="px-3 text-center text-sm font-bold text-brand-navy">
               Đang mở ảnh…
@@ -167,11 +168,8 @@ export function JoinForm({
               className="h-full w-full object-cover"
             />
           ) : (
-            <div className="flex flex-col items-center gap-0.5 px-3 text-center">
-              <span className="text-3xl" aria-hidden>
-                📸
-              </span>
-              <span className="text-sm font-bold leading-tight text-brand-navy">
+            <div className="flex flex-col items-center gap-1 px-4 text-center">
+              <span className="font-display text-sm font-bold leading-tight text-brand-navy">
                 Ảnh của bạn
               </span>
               <span className="text-xs font-semibold text-peach">Bắt buộc</span>
@@ -185,35 +183,36 @@ export function JoinForm({
         </div>
 
         <div className="flex w-full gap-2">
-          <button
+          <AnimatedButton
             type="button"
+            variant="secondary"
             disabled={compressing || loading}
             onClick={() => cameraRef.current?.click()}
-            className="flex-1 rounded-xl bg-brand-navy px-3 py-3 text-sm font-bold text-white shadow-md active:scale-[0.98] disabled:opacity-60"
+            className="flex-1 border-2 border-brand-navy/15 bg-brand-navy px-3 py-3 text-sm font-bold text-white shadow-md disabled:opacity-60"
           >
             Chụp ảnh
-          </button>
-          <button
+          </AnimatedButton>
+          <AnimatedButton
             type="button"
+            variant="secondary"
             disabled={compressing || loading}
             onClick={() => galleryRef.current?.click()}
-            className="flex-1 rounded-xl border-2 border-peach/40 bg-surface px-3 py-3 text-sm font-bold text-brand-navy active:scale-[0.98] disabled:opacity-60"
+            className="flex-1 border-2 border-brand-navy/20 bg-white px-3 py-3 text-sm font-bold text-brand-navy disabled:opacity-60"
           >
             Chọn từ máy
-          </button>
+          </AnimatedButton>
         </div>
 
         {onOpenPrompt && (
           <button
             type="button"
             onClick={onOpenPrompt}
-            className="w-full rounded-xl border border-dashed border-brand-navy/30 bg-brand-navy/5 px-3 py-2.5 text-sm font-semibold text-brand-navy transition hover:bg-brand-navy/10"
+            className="w-full rounded-full border border-dashed border-brand-navy/25 bg-brand-navy/[0.04] px-3 py-2.5 text-sm font-semibold text-brand-navy transition hover:bg-brand-navy/10"
           >
-            Chưa có ảnh? Lấy Prompt tạo ảnh (AI) →
+            Chưa có ảnh? Mở Prompt AI →
           </button>
         )}
 
-        {/* Camera — capture ưu tiên camera trước */}
         <input
           ref={cameraRef}
           type="file"
@@ -222,7 +221,6 @@ export function JoinForm({
           className="hidden"
           onChange={onPhotoChange}
         />
-        {/* Thư viện — không capture để mở album */}
         <input
           ref={galleryRef}
           type="file"
@@ -248,7 +246,7 @@ export function JoinForm({
       <Field label="Họ và tên" name="name" required placeholder="Nguyễn Văn A" />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="dob" className="text-sm font-semibold text-foreground">
+        <label htmlFor="dob" className="text-sm font-semibold text-brand-navy">
           Ngày sinh <span className="text-coral">*</span>
         </label>
         <input
@@ -262,21 +260,19 @@ export function JoinForm({
           placeholder="dd/mm/yyyy"
           maxLength={10}
           autoComplete="bday"
-          className="rounded-card border-2 border-peach/20 bg-surface px-4 py-3 text-foreground focus:border-peach focus:outline-none"
+          className={fieldClass}
         />
         <p className="text-xs text-ink-muted">Ví dụ: 23/05/2008</p>
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="major" className="text-sm font-semibold text-foreground">
+        <label
+          htmlFor="major"
+          className="text-sm font-semibold text-brand-navy"
+        >
           Ngành học
         </label>
-        <select
-          id="major"
-          name="major"
-          required
-          className="rounded-card border-2 border-peach/20 bg-surface px-4 py-3 text-foreground focus:border-peach focus:outline-none"
-        >
+        <select id="major" name="major" required className={fieldClass}>
           <option value="">— Chọn ngành —</option>
           {majors.map((m) => (
             <option key={m} value={m}>
@@ -287,7 +283,7 @@ export function JoinForm({
       </div>
 
       {error && (
-        <p className="rounded-card bg-coral/10 px-4 py-3 text-sm text-coral">
+        <p className="rounded-xl bg-coral/10 px-4 py-3 text-sm text-coral">
           {error}
         </p>
       )}
@@ -296,13 +292,13 @@ export function JoinForm({
         type="submit"
         variant="sprout"
         disabled={loading || compressing || !compressed}
-        className="w-full px-4 py-4 text-base leading-snug disabled:opacity-60 sm:text-lg"
+        className="w-full px-4 py-4 text-base leading-snug shadow-sticker ring-2 ring-white/50 disabled:opacity-60 sm:text-lg"
       >
         {loading
           ? "Đang gửi…"
           : compressing
             ? "Đang nén ảnh…"
-            : "Gửi ảnh — Nhận Bất ngờ & Xem thần số học ✨"}
+            : "Gửi ảnh — Nhận Bất ngờ & Xem thần số học"}
       </AnimatedButton>
     </form>
   );
@@ -323,8 +319,9 @@ function Field({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={name} className="text-sm font-semibold text-foreground">
+      <label htmlFor={name} className="text-sm font-semibold text-brand-navy">
         {label}
+        {required ? <span className="text-coral"> *</span> : null}
       </label>
       <input
         id={name}
@@ -332,7 +329,7 @@ function Field({
         type={type}
         required={required}
         placeholder={placeholder}
-        className="rounded-card border-2 border-peach/20 bg-surface px-4 py-3 text-foreground focus:border-peach focus:outline-none"
+        className={fieldClass}
       />
     </div>
   );

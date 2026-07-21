@@ -56,10 +56,10 @@ export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
   return (
     <section className="space-y-4">
       <div>
-        <h2 className="font-display text-lg font-bold text-foreground">
+        <h2 className="font-display text-xl font-bold text-foreground">
           Kiểm duyệt ảnh
         </h2>
-        <p className="text-sm text-ink-muted">
+        <p className="text-base text-ink-muted">
           Bấm <strong className="text-coral">Ẩn</strong> để gỡ lá khỏi cây ·{" "}
           {subs.filter((s) => !s.hidden).length} đang hiển thị
         </p>
@@ -88,13 +88,13 @@ export function AdminModerationGrid({ eventId }: AdminModerationGridProps) {
               <div className="aspect-square bg-surface-warm" />
             )}
             <div className="p-2">
-              <p className="truncate text-sm font-semibold">{s.name}</p>
-              <p className="truncate text-xs text-ink-muted">{s.major}</p>
+              <p className="truncate text-base font-semibold">{s.name}</p>
+              <p className="truncate text-sm text-ink-muted">{s.major}</p>
             </div>
             <button
               type="button"
               onClick={() => toggleHidden(s.id, s.hidden)}
-              className={`absolute right-2 top-2 rounded-full px-2 py-1 text-xs font-bold text-white ${
+              className={`absolute right-2 top-2 rounded-full px-2 py-1 text-sm font-bold text-white ${
                 s.hidden ? "bg-sprout" : "bg-coral"
               }`}
             >

@@ -51,10 +51,10 @@ export function AdminLockTree({ eventId, eventSlug }: AdminLockTreeProps) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <h2 className="font-display text-lg font-bold text-foreground">
+      <h2 className="font-display text-xl font-bold text-foreground">
         Chốt cây
       </h2>
-      <p className="mt-1 text-sm text-ink-muted">
+      <p className="mt-1 text-base text-ink-muted">
         Sau khi chốt, sinh viên không nộp thêm được và nút{" "}
         <strong>Xem điều kỳ diệu</strong> hiện trên trang chủ.
       </p>
@@ -65,7 +65,7 @@ export function AdminLockTree({ eventId, eventSlug }: AdminLockTreeProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="mt-3 text-sm text-sprout"
+            className="mt-3 text-base text-sprout"
           >
             {message}
           </motion.p>
@@ -84,7 +84,7 @@ export function AdminLockTree({ eventId, eventSlug }: AdminLockTreeProps) {
         <Link
           href={`/v/${eventSlug}?present=1`}
           target="_blank"
-          className="inline-flex items-center rounded-button border border-peach/30 px-4 py-2 text-sm font-semibold"
+          className="inline-flex items-center rounded-button border border-peach/30 px-4 py-2 text-base font-semibold"
         >
           Xem trước cây
         </Link>

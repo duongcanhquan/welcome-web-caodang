@@ -62,7 +62,7 @@ export function AdminLoginForm() {
           </div>
         </StaggerItem>
         <StaggerItem>
-          <h1 className="font-display text-center text-2xl font-bold text-brand-navy">
+          <h1 className="font-display text-center text-3xl font-bold text-brand-navy">
             Admin
           </h1>
         </StaggerItem>
@@ -75,7 +75,7 @@ export function AdminLoginForm() {
               placeholder="Email"
               required
               autoComplete="email"
-              className="w-full rounded-card border-2 border-brand-navy/15 bg-surface/80 px-4 py-3 backdrop-blur-sm focus:border-brand-navy focus:outline-none"
+              className="w-full rounded-card border-2 border-brand-navy/15 bg-surface/80 px-4 py-3.5 text-base focus:border-brand-navy focus:outline-none"
               whileFocus={{ scale: 1.01 }}
             />
             <motion.input
@@ -85,7 +85,7 @@ export function AdminLoginForm() {
               placeholder="Mật khẩu"
               required
               autoComplete="current-password"
-              className="w-full rounded-card border-2 border-brand-navy/15 bg-surface/80 px-4 py-3 backdrop-blur-sm focus:border-brand-navy focus:outline-none"
+              className="w-full rounded-card border-2 border-brand-navy/15 bg-surface/80 px-4 py-3.5 text-base focus:border-brand-navy focus:outline-none"
               whileFocus={{ scale: 1.01 }}
             />
             <AnimatePresence>
@@ -94,7 +94,7 @@ export function AdminLoginForm() {
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="text-sm text-coral"
+                  className="text-base text-coral"
                 >
                   {error}
                 </motion.p>

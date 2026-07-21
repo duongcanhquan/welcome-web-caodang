@@ -78,10 +78,10 @@ export function AdminEventOverview({
       animate={{ opacity: 1, y: 0 }}
     >
       <div>
-        <GradientText as="h2" className="font-display text-xl font-bold">
+        <GradientText as="h2" className="font-display text-2xl font-bold">
           Tổng quan sự kiện
         </GradientText>
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mt-1 text-base text-ink-muted">
           {settings.name} · <code className="text-peach">{settings.slug}</code>
         </p>
       </div>
@@ -110,14 +110,14 @@ export function AdminEventOverview({
       </div>
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-foreground">
+        <p className="mb-2 text-base font-semibold text-foreground">
           Ngành học ({EVENT_MAJORS.length})
         </p>
         <div className="flex flex-wrap gap-1.5">
           {EVENT_MAJORS.map((m) => (
             <span
               key={m}
-              className="rounded-full bg-surface-warm px-2.5 py-0.5 text-xs text-ink-muted"
+              className="rounded-full bg-surface-warm px-2.5 py-0.5 text-sm text-ink-muted"
             >
               {m}
             </span>
@@ -125,13 +125,13 @@ export function AdminEventOverview({
         </div>
       </div>
 
-      <p className="text-sm text-ink-muted">
+      <p className="text-base text-ink-muted">
         <span className="font-semibold text-foreground">Gốc cây:</span>{" "}
         {settings.rootsText}
       </p>
 
       <div>
-        <p className="mb-3 text-sm font-semibold text-foreground">Link nhanh</p>
+        <p className="mb-3 text-base font-semibold text-foreground">Link nhanh</p>
         <div className="grid gap-2 sm:grid-cols-2">
           {links.map((link) => (
             <Link
@@ -140,14 +140,14 @@ export function AdminEventOverview({
               target="_blank"
               className="rounded-xl border border-peach/20 bg-surface-warm/50 px-4 py-3 transition hover:border-peach/40 hover:bg-surface-warm"
             >
-              <p className="text-sm font-bold text-foreground">{link.label}</p>
-              <p className="text-xs text-ink-muted">{link.desc}</p>
+              <p className="text-base font-bold text-foreground">{link.label}</p>
+              <p className="text-sm text-ink-muted">{link.desc}</p>
             </Link>
           ))}
         </div>
       </div>
 
-      <p className="text-xs text-ink-muted">
+      <p className="text-sm text-ink-muted">
         Admin: <code>/admin</code> · Event đang quản lý:{" "}
         <code>{settings.slug}</code>
       </p>
@@ -157,11 +157,11 @@ export function AdminEventOverview({
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-surface-warm/80 px-3 py-2">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-ink-muted">
+    <div className="rounded-lg bg-surface-warm/80 px-3 py-3">
+      <p className="text-sm font-bold uppercase tracking-wider text-ink-muted">
         {label}
       </p>
-      <p className="text-sm font-semibold text-foreground">{value}</p>
+      <p className="mt-0.5 text-lg font-bold text-foreground">{value}</p>
     </div>
   );
 }

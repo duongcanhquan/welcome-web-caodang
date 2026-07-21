@@ -64,7 +64,7 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
   return (
     <section className="space-y-4">
       {!embedded && (
-        <h2 className="font-display text-lg font-bold text-foreground">
+        <h2 className="font-display text-xl font-bold text-foreground">
           Cài đặt AI
         </h2>
       )}
@@ -76,7 +76,7 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
       >
         <div>
           <h3 className="font-semibold text-foreground">DeepSeek API</h3>
-          <p className="mt-1 text-sm text-ink-muted">
+          <p className="mt-1 text-base text-ink-muted">
             Cá nhân hoá thần số học — API key chỉ lưu server-side.
           </p>
         </div>
@@ -88,11 +88,11 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
             onChange={(e) => setAiEnabled(e.target.checked)}
             className="h-4 w-4 accent-sprout"
           />
-          <span className="text-sm font-medium">Bật cá nhân hoá AI</span>
+          <span className="text-base font-medium">Bật cá nhân hoá AI</span>
         </label>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">
+          <label className="text-base font-semibold">
             API Key {hasApiKey && <span className="text-sprout">(đã lưu ✓)</span>}
           </label>
           <input
@@ -105,7 +105,7 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Model</label>
+          <label className="text-base font-semibold">Model</label>
           <select
             value={model}
             onChange={(e) => setModel(e.target.value)}
@@ -117,13 +117,13 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-semibold">Prompt thần số học (tuỳ chọn)</label>
+          <label className="text-base font-semibold">Prompt thần số học (tuỳ chọn)</label>
           <textarea
             value={numerologyPrompt}
             onChange={(e) => setNumerologyPrompt(e.target.value)}
             rows={4}
             placeholder="Để trống = dùng prompt mặc định"
-            className="resize-none rounded-card border-2 border-peach/20 px-4 py-3 text-sm focus:border-peach focus:outline-none"
+            className="resize-none rounded-card border-2 border-peach/20 px-4 py-3 text-base focus:border-peach focus:outline-none"
           />
         </div>
 
@@ -133,7 +133,7 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="text-sm text-sprout"
+              className="text-base text-sprout"
             >
               {message}
             </motion.p>

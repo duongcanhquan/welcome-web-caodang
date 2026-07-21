@@ -156,21 +156,21 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
       animate={{ opacity: 1, y: 0 }}
     >
       <div className="rounded-card border border-peach/20 bg-surface/90 p-6 shadow-soft backdrop-blur-sm">
-        <GradientText as="h2" className="font-display text-xl font-bold">
+        <GradientText as="h2" className="font-display text-2xl font-bold">
           Cây & lịch sử
         </GradientText>
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mt-1 text-base text-ink-muted">
           Giữ cây cũ để xem lại / tải về. Tạo cây mới khi bắt đầu lớp khác.
         </p>
 
         {error && (
-          <p className="mt-3 rounded-lg bg-coral/10 px-3 py-2 text-sm text-coral">
+          <p className="mt-3 rounded-lg bg-coral/10 px-3 py-2 text-base text-coral">
             {error}
           </p>
         )}
 
         {loading ? (
-          <p className="mt-4 text-sm text-ink-muted">Đang tải…</p>
+          <p className="mt-4 text-base text-ink-muted">Đang tải…</p>
         ) : (
           <ul className="mt-4 space-y-3">
             {events.map((ev) => {
@@ -189,17 +189,17 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                       <p className="font-semibold text-foreground">
                         {ev.name}
                         {ev.is_active && (
-                          <span className="ml-2 rounded-full bg-brand-navy px-2 py-0.5 text-[10px] font-bold text-white">
+                          <span className="ml-2 rounded-full bg-brand-navy px-2 py-0.5 text-sm font-bold text-white">
                             Đang chạy
                           </span>
                         )}
                         {ev.status === "locked" && (
-                          <span className="ml-2 rounded-full bg-peach/20 px-2 py-0.5 text-[10px] font-bold text-peach">
+                          <span className="ml-2 rounded-full bg-peach/20 px-2 py-0.5 text-sm font-bold text-peach">
                             Đã chốt
                           </span>
                         )}
                       </p>
-                      <p className="text-xs text-ink-muted">
+                      <p className="text-sm text-ink-muted">
                         <code>{ev.slug}</code> · {ev.submissionCount} bài nộp ·{" "}
                         {new Date(ev.created_at).toLocaleDateString("vi-VN")}
                       </p>
@@ -207,21 +207,21 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                     <div className="flex flex-wrap gap-1.5">
                       <Link
                         href={`/admin/submissions?event=${ev.slug}&tab=tong-quan`}
-                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-xs font-semibold hover:bg-surface-warm"
+                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-sm font-semibold hover:bg-surface-warm"
                       >
                         Quản lý
                       </Link>
                       <Link
                         href={`/live/${ev.slug}`}
                         target="_blank"
-                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-xs font-semibold hover:bg-surface-warm"
+                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-sm font-semibold hover:bg-surface-warm"
                       >
                         Live
                       </Link>
                       <Link
                         href={`/v/${ev.slug}`}
                         target="_blank"
-                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-xs font-semibold hover:bg-surface-warm"
+                        className="rounded-lg border border-peach/25 px-2.5 py-1 text-sm font-semibold hover:bg-surface-warm"
                       >
                         Xem lại
                       </Link>
@@ -229,7 +229,7 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                         <button
                           type="button"
                           onClick={() => void activate(ev.id)}
-                          className="rounded-lg border border-brand-navy/30 px-2.5 py-1 text-xs font-semibold text-brand-navy hover:bg-brand-navy/10"
+                          className="rounded-lg border border-brand-navy/30 px-2.5 py-1 text-sm font-semibold text-brand-navy hover:bg-brand-navy/10"
                         >
                           Đặt đang chạy
                         </button>
@@ -249,7 +249,7 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
                         type="button"
                         disabled={downloading === `${ev.id}-${fmt}`}
                         onClick={() => void download(ev.id, fmt)}
-                        className="rounded-lg bg-surface px-2.5 py-1 text-xs font-semibold text-ink-muted ring-1 ring-peach/20 transition hover:text-foreground disabled:opacity-50"
+                        className="rounded-lg bg-surface px-2.5 py-1 text-sm font-semibold text-ink-muted ring-1 ring-peach/20 transition hover:text-foreground disabled:opacity-50"
                       >
                         {downloading === `${ev.id}-${fmt}`
                           ? "Đang tải…"
@@ -265,14 +265,14 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
       </div>
 
       <div className="rounded-card border border-peach/20 bg-surface/90 p-6 shadow-soft backdrop-blur-sm">
-        <h3 className="font-display text-lg font-bold text-foreground">
+        <h3 className="font-display text-xl font-bold text-foreground">
           Tạo cây mới
         </h3>
-        <p className="mt-1 text-sm text-ink-muted">
+        <p className="mt-1 text-base text-ink-muted">
           Cây cũ được giữ nguyên. Form join sẽ chuyển sang cây mới.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="block text-sm">
+          <label className="block text-base">
             <span className="mb-1 block font-semibold text-ink-muted">
               Tên sự kiện
             </span>
@@ -280,10 +280,10 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
               placeholder="Cây Khóa 2027 — Việt Mỹ"
-              className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-sm outline-none focus:border-peach"
+              className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
             />
           </label>
-          <label className="block text-sm">
+          <label className="block text-base">
             <span className="mb-1 block font-semibold text-ink-muted">
               Slug (URL)
             </span>
@@ -291,11 +291,11 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
               value={slug}
               onChange={(e) => setSlug(normalizeSlug(e.target.value))}
               placeholder="k2027"
-              className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-sm outline-none focus:border-peach"
+              className="w-full rounded-xl border border-peach/25 bg-surface-warm px-3 py-2 text-base outline-none focus:border-peach"
             />
           </label>
         </div>
-        <label className="mt-3 flex items-start gap-2 text-sm text-ink-muted">
+        <label className="mt-3 flex items-start gap-2 text-base text-ink-muted">
           <input
             type="checkbox"
             checked={lockFirst}
@@ -311,7 +311,7 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
           type="button"
           disabled={creating || !name.trim() || !slug.trim()}
           onClick={() => void create()}
-          className="mt-4 rounded-full bg-brand-navy px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
+          className="mt-4 rounded-full bg-brand-navy px-5 py-2.5 text-base font-bold text-white shadow-md transition hover:opacity-90 disabled:opacity-50"
         >
           {creating ? "Đang tạo…" : "Tạo cây mới"}
         </button>

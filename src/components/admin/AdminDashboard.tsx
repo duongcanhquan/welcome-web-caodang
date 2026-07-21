@@ -75,7 +75,7 @@ export function AdminDashboard({
   };
 
   return (
-    <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 pb-16">
+    <div className="mx-auto min-h-screen w-full max-w-5xl px-4 py-6 pb-16 text-base leading-relaxed text-foreground sm:text-lg">
       <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-peach/15 pb-5">
         <div className="flex items-center gap-4">
           <Image
@@ -83,13 +83,13 @@ export function AdminDashboard({
             alt="Việt Mỹ College"
             width={120}
             height={52}
-            className="h-10 w-auto object-contain"
+            className="h-12 w-auto object-contain"
           />
           <div>
-            <GradientText as="h1" className="font-display text-xl font-bold sm:text-2xl">
+            <GradientText as="h1" className="font-display text-2xl font-bold sm:text-3xl">
               Admin WELCOME
             </GradientText>
-            <p className="text-xs text-ink-muted sm:text-sm">
+            <p className="mt-0.5 text-sm font-medium text-ink-muted sm:text-base">
               {snapshot?.name ?? "Sự kiện"} ·{" "}
               <code className="text-peach">{eventSlug}</code> ·{" "}
               {eventStatus === "locked" ? "🔒 Đã chốt cây" : "🌱 Đang thu thập"}
@@ -99,14 +99,14 @@ export function AdminDashboard({
         <button
           type="button"
           onClick={logout}
-          className="rounded-full border border-peach/25 px-4 py-2 text-sm text-ink-muted transition hover:bg-surface-warm"
+          className="rounded-full border border-peach/25 px-5 py-2.5 text-base font-semibold text-ink-muted transition hover:bg-surface-warm"
         >
           Đăng xuất
         </button>
       </header>
 
       <nav
-        className="mb-6 flex gap-1 overflow-x-auto rounded-card border border-peach/15 bg-surface/80 p-1 shadow-soft backdrop-blur-sm"
+        className="mb-6 flex gap-1 overflow-x-auto rounded-card border border-peach/15 bg-surface/80 p-1.5 shadow-soft backdrop-blur-sm"
         aria-label="Admin tabs"
       >
         {TABS.map((tab) => (
@@ -114,7 +114,7 @@ export function AdminDashboard({
             key={tab.id}
             type="button"
             onClick={() => setTab(tab.id)}
-            className={`shrink-0 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+            className={`shrink-0 rounded-lg px-4 py-3 text-base font-bold transition sm:text-lg ${
               activeTab === tab.id
                 ? "bg-brand-navy text-white shadow-md"
                 : "text-ink-muted hover:bg-surface-warm hover:text-foreground"
@@ -124,7 +124,7 @@ export function AdminDashboard({
             {tab.label}
             {tab.id === "danh-sach" && snapshot && snapshot.totalSubmissions > 0 && (
               <span
-                className={`ml-2 rounded-full px-1.5 py-0.5 text-[10px] ${
+                className={`ml-2 rounded-full px-1.5 py-0.5 text-sm ${
                   activeTab === tab.id ? "bg-white/20" : "bg-peach/15 text-peach"
                 }`}
               >

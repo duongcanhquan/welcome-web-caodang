@@ -86,10 +86,10 @@ export function AdminSubmissionsList({
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="font-display text-lg font-bold text-foreground">
+          <h2 className="font-display text-xl font-bold text-foreground">
             Danh sách đã nộp
           </h2>
-          <p className="text-sm text-ink-muted">
+          <p className="text-base text-ink-muted">
             {filtered.length} / {subs.length} bạn · hiển thị{" "}
             {subs.filter((s) => !s.hidden).length} lá trên cây
           </p>
@@ -99,7 +99,7 @@ export function AdminSubmissionsList({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Tìm tên hoặc ngành…"
-          className="w-full max-w-xs rounded-card border-2 border-peach/20 bg-surface px-4 py-2 text-sm focus:border-peach focus:outline-none"
+          className="w-full max-w-xs rounded-card border-2 border-peach/20 bg-surface px-4 py-2 text-base focus:border-peach focus:outline-none"
         />
       </div>
 
@@ -111,9 +111,9 @@ export function AdminSubmissionsList({
         </p>
       ) : (
         <div className="overflow-x-auto rounded-card border border-peach/15 bg-surface/90 shadow-soft">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[640px] text-left text-base">
             <thead>
-              <tr className="border-b border-peach/15 bg-surface-warm/80 text-xs font-bold uppercase tracking-wide text-ink-muted">
+              <tr className="border-b border-peach/15 bg-surface-warm/80 text-sm font-bold uppercase tracking-wide text-ink-muted">
                 <th className="px-3 py-3">#</th>
                 <th className="px-3 py-3">Ảnh</th>
                 <th className="px-3 py-3">Họ tên</th>
@@ -150,16 +150,16 @@ export function AdminSubmissionsList({
                     {s.major}
                   </td>
                   <td className="px-3 py-3 text-ink-muted">{formatDob(s.dob)}</td>
-                  <td className="px-3 py-3 text-xs text-ink-muted">
+                  <td className="px-3 py-3 text-sm text-ink-muted">
                     {formatTime(s.created_at)}
                   </td>
                   <td className="px-3 py-3">
                     {s.hidden ? (
-                      <span className="rounded-full bg-coral/15 px-2 py-0.5 text-xs font-semibold text-coral">
+                      <span className="rounded-full bg-coral/15 px-2 py-0.5 text-sm font-semibold text-coral">
                         Đã ẩn
                       </span>
                     ) : (
-                      <span className="rounded-full bg-sprout/15 px-2 py-0.5 text-xs font-semibold text-sprout">
+                      <span className="rounded-full bg-sprout/15 px-2 py-0.5 text-sm font-semibold text-sprout">
                         Hiển thị
                       </span>
                     )}
@@ -168,7 +168,7 @@ export function AdminSubmissionsList({
                     <Link
                       href={`/me/${s.token}`}
                       target="_blank"
-                      className="text-xs font-semibold text-peach underline"
+                      className="text-sm font-semibold text-peach underline"
                     >
                       Thần số
                     </Link>
@@ -181,7 +181,7 @@ export function AdminSubmissionsList({
       )}
 
       {eventSlug && subs.length > 0 && (
-        <p className="text-center text-xs text-ink-muted">
+        <p className="text-center text-sm text-ink-muted">
           Form sinh viên:{" "}
           <Link href="/join" target="_blank" className="text-peach underline">
             /join

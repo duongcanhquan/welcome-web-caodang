@@ -1,5 +1,6 @@
 import { LiveTreeView } from "@/components/tree/LiveTreeView";
-import { getLiveTreeLayout } from "@/lib/tree/get-layout";
+import { getTreeLayoutForEvent } from "@/lib/tree/get-layout";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { DEFAULT_EVENT_SLUG } from "@/lib/constants";
 
 export const metadata = { title: "Trình chiếu LIVE — Cây Khóa 2026" };
@@ -22,9 +23,11 @@ export default async function LivePage({
   let eventName = slug;
   let batchLabel = "";
   let classLabel = "";
+  let dobMap: Record<string, string> = {};
 
   try {
-    const result = await getLiveTreeLayout(slug);
+    // Dùng layout đúng trạng thái: collecting → live; locked → mosaic
+    const result = await getTreeLayoutForEvent(slug);
     if (result) {
       layout = result.layout;
       eventId = result.event.eventId;
@@ -32,6 +35,15 @@ export default async function LivePage({
       eventName = result.event.name;
       batchLabel = result.event.batchLabel;
       classLabel = result.event.classLabel;
+
+      const admin = createAdminClient();
+      const { data: subs } = await admin
+        .from("submissions")
+        .select("id, dob")
+        .eq("event_id", result.event.eventId);
+      dobMap = Object.fromEntries(
+        (subs ?? []).map((s) => [s.id, s.dob as string])
+      );
     }
   } catch {
     // Supabase chưa cấu hình
@@ -60,6 +72,7 @@ export default async function LivePage({
       initialLayout={layout}
       blossomEvery={blossomEvery}
       fullscreen={fullscreen}
+      dobMap={dobMap}
     />
   );
 }

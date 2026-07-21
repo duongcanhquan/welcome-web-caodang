@@ -17,6 +17,18 @@ interface TreeLeafNodeProps {
   onBranch?: boolean;
 }
 
+function imageSrc(leaf: TreeLeaf): string | null {
+  return leaf.leafUrl || leaf.photoUrl || null;
+}
+
+function initials(name?: string | null): string {
+  if (!name?.trim()) return "?";
+  const parts = name.trim().split(/\s+/);
+  const a = parts[0]?.[0] ?? "";
+  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
+  return (a + b).toUpperCase() || "?";
+}
+
 export function TreeLeafNode({
   leaf,
   canvasW,
@@ -30,7 +42,7 @@ export function TreeLeafNode({
   onClick,
   onBranch = false,
 }: TreeLeafNodeProps) {
-  if (leaf.filler && !leaf.leafUrl) return null;
+  if (leaf.filler && !imageSrc(leaf)) return null;
 
   const size = baseSize * leaf.scale;
   const left = leaf.x * canvasW - size / 2;
@@ -38,17 +50,33 @@ export function TreeLeafNode({
   const clickable = !leaf.filler && Boolean(leaf.submissionId);
   const isFallen = leaf.fallen;
   const swayClass = windSway || presentation ? "animate-leaf-wind" : "";
+  const src = imageSrc(leaf);
+  const tip =
+    leaf.name != null
+      ? [leaf.name, leaf.major].filter(Boolean).join(" · ")
+      : undefined;
 
-  if (onBranch && leaf.leafUrl) {
+  const handleActivate = () => {
+    if (clickable) onClick?.(leaf);
+  };
+
+  if (onBranch) {
     return (
       <button
         type="button"
         disabled={!clickable}
-        onClick={() => clickable && onClick?.(leaf)}
-        className={`absolute origin-center transition-all duration-500 ${swayClass} ${
-          clickable ? "cursor-pointer hover:z-[25] hover:scale-110" : "pointer-events-none"
+        title={tip}
+        onClick={handleActivate}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            handleActivate();
+          }
+        }}
+        className={`group absolute origin-center transition-all duration-500 ${swayClass} ${
+          clickable ? "cursor-pointer hover:z-[40] hover:scale-110" : "pointer-events-none"
         } ${isNew ? "animate-leaf-pop" : ""} ${
-          highlighted ? "z-[30] !scale-[1.3]" : "z-[10]"
+          highlighted ? "z-[30] !scale-[1.3]" : isFallen ? "z-[8] opacity-90" : "z-[10]"
         }`}
         style={{
           left,
@@ -60,6 +88,21 @@ export function TreeLeafNode({
         }}
         aria-label={leaf.name ?? "Sinh viên"}
       >
+        {/* Tooltip hover — giống cảm giác demo khi di chuột */}
+        {clickable && tip && (
+          <span
+            className="pointer-events-none absolute bottom-[108%] left-1/2 z-50 w-max max-w-[11rem] -translate-x-1/2 rounded-lg bg-brand-navy/95 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-snug text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+            role="tooltip"
+          >
+            <span className="block truncate">{leaf.name}</span>
+            {leaf.major ? (
+              <span className="mt-0.5 block truncate text-[10px] font-normal text-white/80">
+                {leaf.major}
+              </span>
+            ) : null}
+          </span>
+        )}
+
         <div
           className="relative h-full w-full"
           style={{
@@ -69,7 +112,6 @@ export function TreeLeafNode({
               : "drop-shadow(0 4px 10px rgba(0,0,0,0.4))",
           }}
         >
-          {/* Viền trắng + viền màu ngành — như ảnh ghim trên tán */}
           <div
             className="h-full w-full overflow-hidden rounded-full p-[3px]"
             style={{
@@ -79,12 +121,31 @@ export function TreeLeafNode({
               boxShadow: "inset 0 0 0 2px rgba(255,255,255,0.9)",
             }}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={leaf.leafUrl}
-              alt={leaf.name ?? ""}
-              className="h-full w-full rounded-full object-cover"
-            />
+            {src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={src}
+                alt={leaf.name ?? ""}
+                className="h-full w-full rounded-full object-cover"
+                loading="lazy"
+                draggable={false}
+                onError={(e) => {
+                  const el = e.currentTarget;
+                  el.style.display = "none";
+                  const fallback = el.nextElementSibling as HTMLElement | null;
+                  if (fallback) fallback.style.display = "flex";
+                }}
+              />
+            ) : null}
+            <div
+              className="h-full w-full items-center justify-center rounded-full text-[0.55em] font-bold text-white"
+              style={{
+                display: src ? "none" : "flex",
+                background: leaf.majorColor,
+              }}
+            >
+              {initials(leaf.name)}
+            </div>
           </div>
           {leaf.blossom && (
             <span className="absolute -right-0.5 -top-0.5 text-base">🌸</span>
@@ -98,8 +159,9 @@ export function TreeLeafNode({
     <button
       type="button"
       disabled={!clickable}
-      onClick={() => clickable && onClick?.(leaf)}
-      className={`absolute origin-center transition-all duration-500 ${swayClass} ${
+      title={tip}
+      onClick={handleActivate}
+      className={`group absolute origin-center transition-all duration-500 ${swayClass} ${
         clickable ? "cursor-pointer hover:z-20 hover:scale-110" : "cursor-default pointer-events-none"
       } ${isNew ? "animate-leaf-pop" : ""} ${
         highlighted ? "z-30 !scale-[1.35]" : isFallen ? "z-[4] opacity-80" : "z-[5]"
@@ -117,15 +179,30 @@ export function TreeLeafNode({
       }}
       aria-label={leaf.name ?? "Lá"}
     >
+      {clickable && tip && (
+        <span className="pointer-events-none absolute bottom-[108%] left-1/2 z-50 w-max max-w-[11rem] -translate-x-1/2 rounded-lg bg-brand-navy/95 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-snug text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+          <span className="block truncate">{leaf.name}</span>
+          {leaf.major ? (
+            <span className="mt-0.5 block truncate text-[10px] font-normal text-white/80">
+              {leaf.major}
+            </span>
+          ) : null}
+        </span>
+      )}
       <div
         className="h-full w-full overflow-hidden rounded-full ring-2 ring-white/80"
         style={{ transform: `rotate(${leaf.rotation}deg)` }}
       >
-        {leaf.leafUrl ? (
+        {src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={leaf.leafUrl} alt="" className="h-full w-full object-cover" />
+          <img src={src} alt="" className="h-full w-full object-cover" draggable={false} />
         ) : (
-          <div className="h-full w-full rounded-full" style={{ background: leaf.majorColor }} />
+          <div
+            className="flex h-full w-full items-center justify-center rounded-full text-[0.55em] font-bold text-white"
+            style={{ background: leaf.majorColor }}
+          >
+            {initials(leaf.name)}
+          </div>
         )}
       </div>
     </button>

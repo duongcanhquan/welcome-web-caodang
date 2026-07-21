@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
-import { MagicalSkyBackground } from "@/components/motion/MagicalSkyBackground";
 import { TreeCanvas } from "./TreeCanvas";
 import { LeafDetailCard } from "./LeafDetailCard";
 
@@ -62,14 +61,14 @@ export function ViewerTreeView({
 
   if (presentation) {
     return (
-      <div className="relative h-dvh min-h-screen overflow-hidden">
+      <div className="relative h-dvh max-h-dvh w-full overflow-hidden">
         <TreeCanvas
           layout={layout}
           mode="view"
           presentation
           highlightedId={highlightedId}
           onLeafClick={setSelectedLeaf}
-          className="h-full"
+          className="absolute inset-0 h-full w-full"
         />
         {selectedLeaf && (
           <LeafDetailCard
@@ -83,14 +82,12 @@ export function ViewerTreeView({
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      <MagicalSkyBackground variant="tree" className="fixed inset-0 -z-10" />
-
+    <div className="relative flex h-dvh max-h-dvh flex-col overflow-hidden">
       {demoBanner && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative z-30 border-b border-honey/30 bg-honey/20 px-4 py-2 text-center text-sm font-semibold text-brand-navy backdrop-blur-md"
+          className="relative z-30 shrink-0 border-b border-honey/30 bg-honey/20 px-4 py-2 text-center text-sm font-semibold text-brand-navy backdrop-blur-md"
         >
           🎬 Demo xem trước — {layout.totalSubmissions} lá mẫu · Không phải dữ liệu thật
         </motion.div>
@@ -99,11 +96,11 @@ export function ViewerTreeView({
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="sticky top-0 z-20 border-b border-white/20 bg-white/15 px-4 py-5 backdrop-blur-xl"
+        className="relative z-30 shrink-0 border-b border-white/20 bg-black/25 px-4 py-3 backdrop-blur-xl sm:py-5"
       >
         <div className="mx-auto max-w-lg text-center">
           <motion.h1
-            className="font-display text-2xl font-bold text-white drop-shadow-lg sm:text-3xl"
+            className="font-display text-xl font-bold text-white drop-shadow-lg sm:text-3xl"
             animate={{
               textShadow: [
                 "0 2px 20px rgba(255,209,92,0.4)",
@@ -115,32 +112,32 @@ export function ViewerTreeView({
           >
             ✨ Điều Kỳ Diệu — WELCOME NEW LYONS
           </motion.h1>
-          <p className="mt-2 text-sm font-medium text-white/85">
-            {layout.totalSubmissions} sinh viên · Gõ tên để tìm lá của bạn
+          <p className="mt-1 text-xs font-medium text-white/85 sm:mt-2 sm:text-sm">
+            {layout.totalSubmissions} sinh viên · Bấm ảnh xem chi tiết · Gõ tên để tìm
           </p>
         </div>
 
-        <div className="mx-auto mt-4 flex max-w-md gap-2">
+        <div className="mx-auto mt-3 flex max-w-md gap-2 sm:mt-4">
           <input
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && findByName()}
             placeholder="Nhập tên của bạn..."
-            className="flex-1 rounded-2xl border-2 border-white/30 bg-white/25 px-4 py-3 text-foreground placeholder:text-ink-muted backdrop-blur-md focus:border-honey focus:outline-none focus:ring-2 focus:ring-honey/30"
+            className="flex-1 rounded-2xl border-2 border-white/30 bg-white/25 px-4 py-2.5 text-sm text-foreground placeholder:text-ink-muted backdrop-blur-md focus:border-honey focus:outline-none focus:ring-2 focus:ring-honey/30 sm:py-3 sm:text-base"
           />
           <motion.button
             type="button"
             onClick={findByName}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.97 }}
-            className="glow-border rounded-button bg-peach px-5 py-3 font-bold text-white shadow-sticker"
+            className="glow-border rounded-button bg-peach px-4 py-2.5 text-sm font-bold text-white shadow-sticker sm:px-5 sm:py-3 sm:text-base"
           >
             Tìm ✨
           </motion.button>
         </div>
 
-        <div className="mt-3 text-center">
+        <div className="mt-2 text-center sm:mt-3">
           <Link
             href="/"
             className="text-xs font-semibold text-white/70 underline-offset-2 hover:text-white hover:underline"
@@ -150,13 +147,15 @@ export function ViewerTreeView({
         </div>
       </motion.header>
 
-      <TreeCanvas
-        layout={layout}
-        mode="view"
-        highlightedId={highlightedId}
-        onLeafClick={setSelectedLeaf}
-        className="min-h-[68vh] flex-1"
-      />
+      <div className="relative min-h-0 flex-1">
+        <TreeCanvas
+          layout={layout}
+          mode="view"
+          highlightedId={highlightedId}
+          onLeafClick={setSelectedLeaf}
+          className="absolute inset-0 h-full w-full"
+        />
+      </div>
 
       {showFirefly && highlightedId && <FireflyOverlay />}
 
@@ -169,16 +168,16 @@ export function ViewerTreeView({
       )}
 
       <motion.div
-        className="fixed bottom-5 right-5 z-20"
+        className="fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] right-4 z-20 sm:bottom-5 sm:right-5"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ delay: 0.5 }}
       >
         <Link
           href="?present=1"
-          className="glow-border inline-block rounded-button bg-brand-navy/90 px-5 py-2.5 text-sm font-bold text-white shadow-lg backdrop-blur-md"
+          className="glow-border inline-block rounded-button bg-brand-navy/90 px-4 py-2 text-sm font-bold text-white shadow-lg backdrop-blur-md sm:px-5 sm:py-2.5"
         >
-          Trình chiếu 🎬
+          Full màn hình 🎬
         </Link>
       </motion.div>
     </div>

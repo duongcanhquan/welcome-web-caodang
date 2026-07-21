@@ -1,6 +1,6 @@
 /**
  * Điểm gắn ảnh trên các tán/nhánh — tán rộng, không dồn cụm.
- * Tọa độ normalized 0..1 trên canvas cây.
+ * ViewBox-normalized 0..1. Fast path khi N lớn.
  */
 
 import type { LeafSlot } from "./types";
@@ -44,26 +44,84 @@ function inEllipse(
   return dx * dx + dy * dy <= 1;
 }
 
-/** Sinh slot ảnh trên tán — rộng, cách nhau, gắn lên nhánh */
-export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
+function makeSlot(
+  x: number,
+  y: number,
+  rand: () => number
+): LeafSlot {
+  const distFromCenter = Math.hypot(x - 0.5, y - 0.22);
+  return {
+    x,
+    y,
+    rotation: (rand() - 0.5) * 16,
+    scale: 0.95 + rand() * 0.2 - distFromCenter * 0.15,
+  };
+}
+
+/** Fast path: rải deterministic theo cụm, không rejection sampling O(n²) */
+function generateFast(count: number, seed: number): LeafSlot[] {
   const rand = seededRandom(seed);
   const totalWeight = FOLIAGE_CLUSTERS.reduce((s, c) => s + c.weight, 0);
   const slots: LeafSlot[] = [];
-  const minDist = 0.055;
+
+  for (const cluster of FOLIAGE_CLUSTERS) {
+    const n = Math.max(
+      1,
+      Math.round((count * cluster.weight) / totalWeight)
+    );
+    for (let i = 0; i < n && slots.length < count; i++) {
+      const angle = ((i + rand()) / n) * Math.PI * 2;
+      const r = Math.sqrt((i + 0.5) / n) * 0.92;
+      const x = cluster.cx + Math.cos(angle) * r * cluster.rx;
+      const y = cluster.cy + Math.sin(angle) * r * cluster.ry;
+      const cx = Math.min(0.96, Math.max(0.04, x));
+      const cy = Math.min(0.48, Math.max(0.06, y));
+      slots.push(makeSlot(cx, cy, rand));
+    }
+  }
+
+  while (slots.length < count) {
+    const cluster = FOLIAGE_CLUSTERS[slots.length % FOLIAGE_CLUSTERS.length];
+    const angle = rand() * Math.PI * 2;
+    const r = Math.sqrt(rand()) * 0.9;
+    slots.push(
+      makeSlot(
+        cluster.cx + Math.cos(angle) * r * cluster.rx,
+        cluster.cy + Math.sin(angle) * r * cluster.ry,
+        rand
+      )
+    );
+  }
+
+  return slots.slice(0, count).sort((a, b) => a.y - b.y);
+}
+
+/** Sinh slot ảnh trên tán — rộng, cách nhau, gắn lên nhánh */
+export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
+  if (count <= 0) return [];
+  // N lớn: bỏ kiểm tra khoảng cách từng điểm (quá chậm khi chốt / tạo layout)
+  if (count > 100) return generateFast(count, seed);
+
+  const rand = seededRandom(seed);
+  const totalWeight = FOLIAGE_CLUSTERS.reduce((s, c) => s + c.weight, 0);
+  const slots: LeafSlot[] = [];
+  const minDist = count > 60 ? 0.04 : 0.055;
 
   for (const cluster of FOLIAGE_CLUSTERS) {
     const n = Math.max(1, Math.round((count * cluster.weight) / totalWeight));
     let placed = 0;
     let attempts = 0;
+    const maxAttempts = n * 25;
 
-    while (placed < n && attempts < n * 40) {
+    while (placed < n && attempts < maxAttempts) {
       attempts++;
       const angle = rand() * Math.PI * 2;
       const r = Math.sqrt(rand());
       const x = cluster.cx + Math.cos(angle) * r * cluster.rx;
       const y = cluster.cy + Math.sin(angle) * r * cluster.ry;
 
-      if (!inEllipse(x, y, cluster.cx, cluster.cy, cluster.rx, cluster.ry)) continue;
+      if (!inEllipse(x, y, cluster.cx, cluster.cy, cluster.rx, cluster.ry))
+        continue;
       if (x < 0.04 || x > 0.96 || y < 0.06 || y > 0.48) continue;
 
       const tooClose = slots.some(
@@ -71,28 +129,22 @@ export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
       );
       if (tooClose) continue;
 
-      const distFromCenter = Math.hypot(x - 0.5, y - 0.22);
-      slots.push({
-        x,
-        y,
-        rotation: (rand() - 0.5) * 16,
-        scale: 0.95 + rand() * 0.2 - distFromCenter * 0.15,
-      });
+      slots.push(makeSlot(x, y, rand));
       placed++;
     }
   }
 
-  // Bổ sung nếu thiếu slot
   while (slots.length < count) {
     const cluster = FOLIAGE_CLUSTERS[slots.length % FOLIAGE_CLUSTERS.length];
     const angle = rand() * Math.PI * 2;
     const r = Math.sqrt(rand()) * 0.9;
-    slots.push({
-      x: cluster.cx + Math.cos(angle) * r * cluster.rx,
-      y: cluster.cy + Math.sin(angle) * r * cluster.ry,
-      rotation: (rand() - 0.5) * 20,
-      scale: 0.88 + rand() * 0.2,
-    });
+    slots.push(
+      makeSlot(
+        cluster.cx + Math.cos(angle) * r * cluster.rx,
+        cluster.cy + Math.sin(angle) * r * cluster.ry,
+        rand
+      )
+    );
   }
 
   return slots.slice(0, count).sort((a, b) => a.y - b.y);

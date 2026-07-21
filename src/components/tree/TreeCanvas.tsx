@@ -18,7 +18,8 @@ interface TreeCanvasProps {
 }
 
 /**
- * Cây cố định một khung hình: không pan/zoom, đất neo đáy màn hình.
+ * Cây full khung: mobile/portrait = cover (lấp màn hình);
+ * desktop ngang = contain, đất neo đáy.
  */
 export function TreeCanvas({
   layout,
@@ -34,14 +35,14 @@ export function TreeCanvas({
   const [pan, setPan] = useState({ x: 0, y: 0 });
 
   const { width: W, height: H } = layout.dimensions;
-  const baseLeafSize = mode === "mini" ? 28 : presentation ? 62 : 56;
+  const baseLeafSize = mode === "mini" ? 28 : presentation ? 58 : 52;
   const skyVariant = presentation ? "twilight" : "tree";
   const lockedCamera = mode !== "mini";
 
   const photoLeaves = useMemo(
     () =>
       layout.leaves
-        .filter((l) => !l.filler && !l.fallen)
+        .filter((l) => !l.filler)
         .sort((a, b) => a.y - b.y),
     [layout.leaves]
   );
@@ -49,16 +50,34 @@ export function TreeCanvas({
   const fitToViewport = useCallback(() => {
     if (mode === "mini" || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    if (rect.width < 8 || rect.height < 8) return;
+    const vw = rect.width;
+    // visualViewport giúp đúng khi thanh địa chỉ mobile ẩn/hiện
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    const vh = Math.max(
+      rect.height,
+      vv && rect.top < 8 ? vv.height - Math.max(0, rect.top) : 0
+    );
+    if (vw < 8 || vh < 8) return;
 
-    // Toàn bộ cây trong 1 màn hình; đất sát đáy
-    const fitScale = Math.min(rect.width / W, rect.height / H);
+    const scaleW = vw / W;
+    const scaleH = vh / H;
+    const portrait = vh / vw >= 1.05;
+    const narrow = vw < 768;
+
+    // Điện thoại / portrait: cover — cây lấp kín, cắt nhẹ hai bên thay vì để trống trời
+    // Desktop ngang: contain — cả cây trong khung
+    const useCover = portrait || narrow || presentation;
+    const fitScale = useCover
+      ? Math.max(scaleW, scaleH)
+      : Math.min(scaleW, scaleH);
+
     setScale(fitScale);
     setPan({
-      x: (rect.width - W * fitScale) / 2,
-      y: rect.height - H * fitScale,
+      x: (vw - W * fitScale) / 2,
+      // Đất sát đáy; cover có thể cắt đỉnh tán một chút
+      y: vh - H * fitScale,
     });
-  }, [W, H, mode]);
+  }, [W, H, mode, presentation]);
 
   useEffect(() => {
     fitToViewport();
@@ -69,9 +88,13 @@ export function TreeCanvas({
     const ro = new ResizeObserver(() => fitToViewport());
     ro.observe(el);
     window.addEventListener("orientationchange", fitToViewport);
+    window.visualViewport?.addEventListener("resize", fitToViewport);
+    window.visualViewport?.addEventListener("scroll", fitToViewport);
     return () => {
       ro.disconnect();
       window.removeEventListener("orientationchange", fitToViewport);
+      window.visualViewport?.removeEventListener("resize", fitToViewport);
+      window.visualViewport?.removeEventListener("scroll", fitToViewport);
     };
   }, [fitToViewport, mode]);
 
@@ -88,9 +111,7 @@ export function TreeCanvas({
       )}
 
       <div
-        className={`relative z-[2] origin-top-left ${
-          lockedCamera ? "pointer-events-none" : ""
-        }`}
+        className="relative z-[2] origin-top-left will-change-transform"
         style={{
           width: W,
           height: H,
@@ -98,6 +119,7 @@ export function TreeCanvas({
           filter: presentation
             ? "drop-shadow(0 24px 60px rgba(0,0,0,0.35))"
             : undefined,
+          ...(lockedCamera ? { touchAction: "none" as const } : null),
         }}
       >
         <MightyTreeArt
@@ -107,8 +129,7 @@ export function TreeCanvas({
           presentation={presentation}
         />
 
-        {/* Ảnh: bật pointer để bấm lá */}
-        <div className="pointer-events-auto absolute inset-0 z-[10]">
+        <div className="absolute inset-0 z-[10]">
           {photoLeaves.map((leaf, i) => (
             <TreeLeafNode
               key={leaf.id}
@@ -134,14 +155,17 @@ export function TreeCanvas({
 function WindFireflies({ vivid }: { vivid?: boolean }) {
   const count = vivid ? 12 : 8;
   return (
-    <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" aria-hidden>
+    <div
+      className="pointer-events-none absolute inset-0 z-[1] overflow-hidden"
+      aria-hidden
+    >
       {Array.from({ length: count }).map((_, i) => (
         <motion.span
           key={i}
           className="absolute rounded-full"
           style={{
-            left: `${10 + (i * 9) % 80}%`,
-            top: `${8 + (i * 11) % 42}%`,
+            left: `${10 + ((i * 9) % 80)}%`,
+            top: `${8 + ((i * 11) % 42)}%`,
             width: 2,
             height: 2,
             background: i % 3 === 0 ? "#FFD15C" : "#fff",

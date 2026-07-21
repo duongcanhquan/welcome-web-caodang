@@ -133,8 +133,8 @@ export async function getLockedTreeLayout(slug: string): Promise<{
         rotation: Number(l.rotation),
         scale: Number(l.scale),
         majorColor: (l.major_color as string) ?? "#3DBE8B",
-        leafUrl: sub?.leaf_url,
-        photoUrl: sub?.photo_url,
+        leafUrl: sub?.leaf_url || sub?.photo_url || null,
+        photoUrl: sub?.photo_url || sub?.leaf_url || null,
         name: sub?.name,
         major: sub?.major,
         wish: sub?.wish,
@@ -145,9 +145,49 @@ export async function getLockedTreeLayout(slug: string): Promise<{
     }
   );
 
+  // Mosaic slim (chỉ lá thật) → bổ sung filler từ buildTreeLayout, giữ toạ độ đã chốt
+  const realCount = leaves.filter((l) => !l.filler && l.submissionId).length;
+  const resolution = Number(mosaic.resolution) || realCount;
+  if (realCount > 0 && realCount < resolution) {
+    const live = buildTreeLayout(
+      (submissions ?? []) as SubmissionForLayout[],
+      event.settings,
+      hashEventId(event.eventId)
+    );
+    const byId = new Map(
+      leaves.filter((l) => l.submissionId).map((l) => [l.submissionId!, l])
+    );
+    for (const leaf of live.leaves) {
+      if (leaf.filler) {
+        leaves.push(leaf);
+        continue;
+      }
+      const locked = leaf.submissionId
+        ? byId.get(leaf.submissionId)
+        : undefined;
+      if (locked) {
+        leaf.x = locked.x;
+        leaf.y = locked.y;
+        leaf.rotation = locked.rotation;
+        leaf.scale = locked.scale;
+        leaf.fallen = locked.fallen;
+        leaf.blossom = locked.blossom;
+      }
+    }
+    return {
+      layout: {
+        ...live,
+        leaves: live.leaves,
+        totalSubmissions: realCount,
+      },
+      event,
+      mosaicVersion: mosaic.version,
+    };
+  }
+
   const layout: TreeLayout = {
     shape: mosaic.shape,
-    resolution: mosaic.resolution,
+    resolution,
     dimensions: { width: 900, height: 1100 },
     canopy: { x: 0.08, y: 0.04, w: 0.84, h: 0.52 },
     trunk: {
@@ -163,7 +203,7 @@ export async function getLockedTreeLayout(slug: string): Promise<{
       y: 0.88,
     },
     leaves,
-    totalSubmissions: leaves.filter((l) => !l.filler).length,
+    totalSubmissions: realCount,
     blossomMilestone: null,
   };
 

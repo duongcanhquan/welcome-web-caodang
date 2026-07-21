@@ -35,10 +35,10 @@ export function LeafDetailCard({ leaf, dob, onClose }: LeafDetailCardProps) {
           ✕
         </button>
 
-        {leaf.photoUrl && (
+        {(leaf.photoUrl || leaf.leafUrl) && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={leaf.photoUrl}
+            src={leaf.photoUrl || leaf.leafUrl || ""}
             alt={leaf.name ?? ""}
             className="mx-auto h-32 w-32 rounded-full object-cover ring-4 ring-peach/30"
           />

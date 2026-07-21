@@ -297,9 +297,29 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
         <h3 className="font-display text-xl font-bold text-foreground">
           Tạo cây cho đợt / lớp mới
         </h3>
-        <p className="mt-1 text-base text-ink-muted">
-          Điền rõ <strong>đợt</strong> và (nếu cần) <strong>lớp</strong> để
-          không lẫn với cây cũ. Form join mặc định chuyển sang cây mới.
+        <div className="mt-2 space-y-2 rounded-xl bg-brand-navy/5 px-3 py-3 text-sm text-ink-muted ring-1 ring-peach/15">
+          <p className="font-semibold text-foreground">Quy trình nhanh (khuyến nghị)</p>
+          <ol className="list-decimal space-y-1 pl-4">
+            <li>
+              <strong>Tạo đợt mới trước</strong> → nhận slug / link form riêng
+            </li>
+            <li>
+              Gửi link <code className="text-xs">/join?event=slug-đợt</code> cho
+              sinh viên nộp ảnh
+            </li>
+            <li>
+              Xem Live realtime → hết buổi bấm <strong>Chốt cây</strong>
+            </li>
+          </ol>
+          <p className="pt-1">
+            Có thể dùng đợt đang chạy sẵn (không tạo mới) nếu chỉ một buổi /
+            một lớp. <strong>Không</strong> nên để sinh viên nộp xong rồi mới tạo
+            đợt — ảnh sẽ nằm nhầm đợt cũ.
+          </p>
+        </div>
+        <p className="mt-3 text-base text-ink-muted">
+          Điền rõ <strong>đợt</strong> và (nếu cần) <strong>lớp</strong>. Form
+          mặc định <code>/join</code> luôn trỏ đợt <strong>Đang chạy</strong>.
         </p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="block text-base sm:col-span-2">
@@ -364,8 +384,8 @@ export function AdminEventsPanel({ currentEventId }: AdminEventsPanelProps) {
             className="mt-1"
           />
           <span>
-            Khoá cây đang chạy trước khi tạo mới (khuyến nghị — giữ layout cũ
-            để xem lại / tải CSV)
+            Khoá đợt đang chạy trước (nhanh — mosaic lưu nền). Giữ cây cũ để xem
+            lại / CSV.
           </span>
         </label>
         <button

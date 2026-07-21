@@ -48,35 +48,32 @@ export function buildTreeLayout(
 
   const leaves: TreeLeaf[] = [];
   const brandColor = settings.trunkConfig.brandColor ?? "#5c3d28";
-  const assigned = new Set<number>();
 
-  for (const sub of visible) {
-    const idx = sub.slot_index ?? leaves.filter((l) => !l.fallen).length;
-    if (idx < canopySlots.length) {
-      assigned.add(idx);
-      const slot = canopySlots[idx];
-      leaves.push({
-        id: sub.id,
-        submissionId: sub.id,
-        slotIndex: idx,
-        x: slot.x,
-        y: slot.y,
-        rotation: slot.rotation,
-        scale: slot.scale,
-        majorColor: getMajorColor(sub.major, settings.majorColors),
-        leafUrl: sub.leaf_url,
-        photoUrl: sub.photo_url,
-        name: sub.name,
-        major: sub.major,
-        wish: sub.wish,
-        token: sub.token,
-      });
-    }
-  }
+  // Xếp theo thứ tự (đã sort slot_index) — không dùng slot_index thô làm toạ độ
+  // (tránh lỗ hổng / số slot lớn → toàn bộ ảnh bị đánh dấu fallen và biến mất trên Live)
+  const onCanopy = visible.slice(0, canopySlots.length);
+  const overflow = visible.slice(canopySlots.length);
 
-  const overflow = visible.filter(
-    (s) => (s.slot_index ?? 0) >= canopySlots.length
-  );
+  onCanopy.forEach((sub, idx) => {
+    const slot = canopySlots[idx];
+    leaves.push({
+      id: sub.id,
+      submissionId: sub.id,
+      slotIndex: idx,
+      x: slot.x,
+      y: slot.y,
+      rotation: slot.rotation,
+      scale: slot.scale,
+      majorColor: getMajorColor(sub.major, settings.majorColors),
+      leafUrl: sub.leaf_url || sub.photo_url,
+      photoUrl: sub.photo_url || sub.leaf_url,
+      name: sub.name,
+      major: sub.major,
+      wish: sub.wish,
+      token: sub.token,
+    });
+  });
+
   if (overflow.length > 0) {
     const fallenSlots = placeFallenLeaves(overflow.length, eventIdSeed + 1);
     overflow.forEach((sub, i) => {
@@ -85,14 +82,14 @@ export function buildTreeLayout(
       leaves.push({
         id: sub.id,
         submissionId: sub.id,
-        slotIndex: sub.slot_index ?? canopySlots.length + i,
+        slotIndex: canopySlots.length + i,
         x: slot.x,
         y: slot.y,
         rotation: slot.rotation,
         scale: slot.scale,
         majorColor: getMajorColor(sub.major, settings.majorColors),
-        leafUrl: sub.leaf_url,
-        photoUrl: sub.photo_url,
+        leafUrl: sub.leaf_url || sub.photo_url,
+        photoUrl: sub.photo_url || sub.leaf_url,
         name: sub.name,
         major: sub.major,
         wish: sub.wish,
@@ -102,10 +99,9 @@ export function buildTreeLayout(
     });
   }
 
-  const usedInCanopy = leaves.filter((l) => !l.fallen).length;
+  const usedInCanopy = onCanopy.length;
   if (usedInCanopy < canopySlots.length) {
-    for (let i = 0; i < canopySlots.length; i++) {
-      if (assigned.has(i)) continue;
+    for (let i = usedInCanopy; i < canopySlots.length; i++) {
       const slot = canopySlots[i];
       leaves.push({
         id: `filler-${i}`,
@@ -152,16 +148,19 @@ export function buildTreeLayout(
   };
 }
 
+/** Chỉ lưu lá thật — filler tái tạo khi đọc (mosaic nhỏ, chốt nhanh) */
 export function layoutToMosaicLeaves(layout: TreeLayout) {
-  return layout.leaves.map((l) => ({
-    submission_id: l.submissionId,
-    filler: l.filler ?? false,
-    x: l.x,
-    y: l.y,
-    rotation: l.rotation,
-    scale: l.scale,
-    major_color: l.majorColor,
-    fallen: l.fallen ?? false,
-    blossom: l.blossom ?? false,
-  }));
+  return layout.leaves
+    .filter((l) => !l.filler && l.submissionId)
+    .map((l) => ({
+      submission_id: l.submissionId,
+      filler: false,
+      x: l.x,
+      y: l.y,
+      rotation: l.rotation,
+      scale: l.scale,
+      major_color: l.majorColor,
+      fallen: l.fallen ?? false,
+      blossom: l.blossom ?? false,
+    }));
 }

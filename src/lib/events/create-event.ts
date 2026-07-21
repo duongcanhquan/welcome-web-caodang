@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { EVENT_MAJORS } from "@/lib/constants";
 import { composeEventName } from "@/lib/events/labels";
 import { isValidSlug, normalizeSlug } from "@/lib/events/slug";
-import { lockTree } from "@/lib/tree/lock-tree";
+import { softLockEvent } from "@/lib/tree/lock-tree";
 import type { EventSettings } from "@/lib/types/database";
 
 export { normalizeSlug } from "@/lib/events/slug";
@@ -48,11 +48,9 @@ function defaultSettings(eventId: string): EventSettings {
 export async function createEvent(input: {
   name?: string;
   slug: string;
-  /** Đợt — bắt buộc để phân biệt cây */
   batchLabel: string;
-  /** Lớp / buổi — tuỳ chọn */
   classLabel?: string;
-  /** Nếu event active đang collecting — khoá trước khi tạo mới */
+  /** Khoá nhanh đợt đang chạy (mosaic chạy nền sau) */
   lockActiveFirst?: boolean;
 }): Promise<{
   id: string;
@@ -60,6 +58,8 @@ export async function createEvent(input: {
   name: string;
   batch_label: string;
   class_label: string;
+  /** Event cũ cần build mosaic nền — API gọi after() */
+  mosaicAfterId: string | null;
 }> {
   const batchLabel = input.batchLabel.trim();
   const classLabel = (input.classLabel ?? "").trim();
@@ -75,18 +75,18 @@ export async function createEvent(input: {
 
   const admin = createAdminClient();
 
-  const { data: existing } = await admin
-    .from("events")
-    .select("id")
-    .eq("slug", slug)
-    .maybeSingle();
+  const [{ data: existing }, { data: active }] = await Promise.all([
+    admin.from("events").select("id").eq("slug", slug).maybeSingle(),
+    admin
+      .from("events")
+      .select("id, status")
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
+
   if (existing) throw new Error(`Slug "${slug}" đã tồn tại`);
 
-  const { data: active } = await admin
-    .from("events")
-    .select("id, status")
-    .eq("is_active", true)
-    .maybeSingle();
+  let mosaicAfterId: string | null = null;
 
   if (active?.status === "collecting") {
     if (!input.lockActiveFirst) {
@@ -94,10 +94,11 @@ export async function createEvent(input: {
         "Cây đang chạy chưa chốt. Bật «Khoá cây hiện tại trước» hoặc chốt cây trong tab Tổng quan."
       );
     }
-    await lockTree(active.id);
+    // Soft lock tức thì — không chờ mosaic (tránh «Đang tạo…» lâu)
+    await softLockEvent(active.id);
+    mosaicAfterId = active.id;
   }
 
-  // Copy settings từ event active (sau khi khoá) hoặc dùng mặc định
   let sourceSettings: EventSettings | null = null;
   if (active) {
     const { data } = await admin
@@ -160,7 +161,6 @@ export async function createEvent(input: {
     throw new Error(settingsErr.message);
   }
 
-  // Chỉ một active — tắt trước rồi bật (unique partial index)
   const { error: clearErr } = await admin
     .from("events")
     .update({ is_active: false })
@@ -173,7 +173,7 @@ export async function createEvent(input: {
     .eq("id", created.id);
   if (activateErr) throw new Error(activateErr.message);
 
-  return created;
+  return { ...created, mosaicAfterId };
 }
 
 export async function setActiveEvent(eventId: string): Promise<void> {
@@ -186,7 +186,9 @@ export async function setActiveEvent(eventId: string): Promise<void> {
 
   if (!event) throw new Error("Sự kiện không tồn tại");
   if (event.status === "locked") {
-    throw new Error("Không thể đặt cây đã chốt làm cây đang chạy — hãy tạo cây mới");
+    throw new Error(
+      "Không thể đặt cây đã chốt làm cây đang chạy — hãy tạo cây mới"
+    );
   }
 
   const { error: clearErr } = await admin

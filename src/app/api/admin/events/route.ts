@@ -1,7 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createEvent } from "@/lib/events/create-event";
+import { lockTree } from "@/lib/tree/lock-tree";
+
+export const maxDuration = 60;
 
 export async function GET() {
   const auth = await requireAdmin();
@@ -66,7 +69,20 @@ export async function POST(req: NextRequest) {
       lockActiveFirst: Boolean(body.lockActiveFirst),
     });
 
-    return NextResponse.json({ ok: true, event: created });
+    // Mosaic đợt cũ chạy nền — response trả về ngay
+    if (created.mosaicAfterId) {
+      const id = created.mosaicAfterId;
+      after(async () => {
+        try {
+          await lockTree(id, { forceRebuild: true });
+        } catch (err) {
+          console.error("[create-event] mosaic nền thất bại", id, err);
+        }
+      });
+    }
+
+    const { mosaicAfterId: _, ...event } = created;
+    return NextResponse.json({ ok: true, event });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Lỗi tạo sự kiện";
     return NextResponse.json({ error: message }, { status: 400 });

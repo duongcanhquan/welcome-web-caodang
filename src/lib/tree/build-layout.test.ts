@@ -55,4 +55,15 @@ describe("buildTreeLayout co giãn", () => {
     const fallen = layout.leaves.filter((l) => l.fallen);
     expect(fallen.length).toBeGreaterThan(0);
   });
+
+  it("slot_index lệch / lớn vẫn hiện đủ ảnh trên tán (không biến mất)", () => {
+    const weird = makeSubs(5).map((s, i) => ({
+      ...s,
+      slot_index: 900 + i * 10,
+    }));
+    const layout = buildTreeLayout(weird, baseSettings);
+    const realOnCanopy = layout.leaves.filter((l) => !l.filler && !l.fallen);
+    expect(realOnCanopy).toHaveLength(5);
+    expect(realOnCanopy.every((l) => l.leafUrl)).toBe(true);
+  });
 });

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import confetti from "canvas-confetti";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
 import { TreeCanvas } from "./TreeCanvas";
+import { LeafDetailCard } from "./LeafDetailCard";
 import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 import { tryCreateClient } from "@/lib/supabase/client";
 
@@ -16,6 +17,7 @@ interface LiveTreeViewProps {
   initialLayout: TreeLayout;
   blossomEvery: number;
   fullscreen?: boolean;
+  dobMap?: Record<string, string>;
 }
 
 export function LiveTreeView({
@@ -27,12 +29,15 @@ export function LiveTreeView({
   initialLayout,
   blossomEvery,
   fullscreen = false,
+  dobMap = {},
 }: LiveTreeViewProps) {
   const [layout, setLayout] = useState(initialLayout);
   const [newLeafId, setNewLeafId] = useState<string | null>(null);
   const [totalLeaves, setTotalLeaves] = useState(initialLayout.totalSubmissions);
   const [toast, setToast] = useState<string | null>(null);
   const [blossom, setBlossom] = useState(false);
+  const [selectedLeaf, setSelectedLeaf] = useState<TreeLeaf | null>(null);
+  const [dobs, setDobs] = useState(dobMap);
 
   const refreshLayout = useCallback(async () => {
     const res = await fetch(`/api/tree/${eventSlug}`);
@@ -41,6 +46,10 @@ export function LiveTreeView({
     setLayout(data.layout);
     setTotalLeaves(data.layout.totalSubmissions);
   }, [eventSlug]);
+
+  useEffect(() => {
+    setDobs(dobMap);
+  }, [dobMap]);
 
   useEffect(() => {
     const supabase = tryCreateClient();
@@ -59,11 +68,19 @@ export function LiveTreeView({
           filter: `event_id=eq.${eventId}`,
         },
         (payload) => {
-          const row = payload.new as { id: string; name?: string; major?: string };
+          const row = payload.new as {
+            id: string;
+            name?: string;
+            major?: string;
+            dob?: string;
+          };
           setNewLeafId(row.id);
           setTimeout(() => setNewLeafId(null), 2000);
 
-          // Debounce layout refresh — tránh storm khi đông SV nộp cùng lúc
+          if (row.dob) {
+            setDobs((prev) => ({ ...prev, [row.id]: row.dob! }));
+          }
+
           if (refreshTimer) clearTimeout(refreshTimer);
           refreshTimer = setTimeout(() => {
             void refreshLayout();
@@ -74,7 +91,11 @@ export function LiveTreeView({
             if (newTotal % blossomEvery === 0) {
               setBlossom(true);
               setToast(`🌸 ${newTotal} lá — Nở hoa rồi!`);
-              confetti({ particleCount: 80, spread: 100, colors: ["#FF6FA5", "#FFD15C"] });
+              confetti({
+                particleCount: 80,
+                spread: 100,
+                colors: ["#FF6FA5", "#FFD15C"],
+              });
               setTimeout(() => setBlossom(false), 5000);
             } else {
               setToast(
@@ -97,12 +118,22 @@ export function LiveTreeView({
   }, [eventId, eventSlug, refreshLayout, blossomEvery]);
 
   return (
-    <div className={`flex flex-col ${fullscreen ? "h-dvh min-h-screen" : "min-h-[70vh]"}`}>
+    <div className="relative h-dvh max-h-dvh w-full overflow-hidden">
+      {/* Cây full màn hình — header phủ lên trên */}
+      <TreeCanvas
+        layout={layout}
+        mode="live"
+        presentation={fullscreen}
+        newLeafId={newLeafId}
+        onLeafClick={setSelectedLeaf}
+        className="absolute inset-0 h-full w-full"
+      />
+
       {!fullscreen && (
-        <header className="flex items-center justify-between gap-4 px-6 py-4">
-          <div className="min-w-0 space-y-1">
-            <p className="font-display text-sm font-semibold uppercase tracking-widest text-peach">
-              Trình chiếu trực tiếp
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 bg-gradient-to-b from-black/45 via-black/20 to-transparent px-4 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="pointer-events-auto min-w-0 space-y-0.5">
+            <p className="font-display text-[11px] font-semibold uppercase tracking-widest text-honey">
+              Live · {totalLeaves} lá
             </p>
             <EventCohortBadge
               batchLabel={batchLabel}
@@ -111,38 +142,50 @@ export function LiveTreeView({
               slug={eventSlug}
               size="sm"
             />
-            <p className="text-2xl font-bold text-foreground">
-              {totalLeaves} lá 🌿
-            </p>
           </div>
           <a
             href={`/live/${eventSlug}?present=1`}
-            target="_blank"
-            className="shrink-0 rounded-button bg-foreground px-4 py-2 text-sm font-semibold text-white"
+            className="pointer-events-auto shrink-0 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-brand-navy shadow-md backdrop-blur-sm"
           >
-            Toàn màn hình
+            Full
           </a>
         </header>
       )}
 
-      <TreeCanvas
-        layout={layout}
-        mode="live"
-        presentation={fullscreen}
-        newLeafId={newLeafId}
-        className={`flex-1 ${fullscreen ? "h-full" : "min-h-[60vh] rounded-card mx-4"}`}
-      />
+      {totalLeaves === 0 && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+          <p className="max-w-sm rounded-2xl bg-black/55 px-5 py-4 text-center text-base font-semibold text-white backdrop-blur-sm">
+            Cây đã sẵn sàng — chưa có ảnh nào được nộp cho đợt này.
+            <br />
+            <span className="mt-1 block text-sm font-normal opacity-90">
+              Mở form join của đúng slug đợt đang quản lý để sinh viên gửi ảnh.
+            </span>
+          </p>
+        </div>
+      )}
 
-      {blossom && fullscreen && (
-        <div className="pointer-events-none fixed inset-0 flex items-center justify-center">
-          <p className="font-display animate-bounce text-6xl font-black text-honey drop-shadow-lg">
+      {selectedLeaf && (
+        <LeafDetailCard
+          leaf={selectedLeaf}
+          dob={
+            selectedLeaf.submissionId
+              ? dobs[selectedLeaf.submissionId]
+              : undefined
+          }
+          onClose={() => setSelectedLeaf(null)}
+        />
+      )}
+
+      {blossom && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
+          <p className="font-display animate-bounce text-5xl font-black text-honey drop-shadow-lg sm:text-6xl">
             🌸 Nở hoa!
           </p>
         </div>
       )}
 
       {toast && (
-        <div className="fixed bottom-8 left-1/2 z-40 -translate-x-1/2 rounded-button bg-peach px-6 py-3 text-lg font-bold text-white shadow-sticker animate-bounce">
+        <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2 rounded-button bg-peach px-5 py-2.5 text-base font-bold text-white shadow-sticker">
           {toast}
         </div>
       )}

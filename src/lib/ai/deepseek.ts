@@ -25,7 +25,7 @@ Viết bằng tiếng Việt, giọng thân thiện, khích lệ, KHÔNG phán x
 Luôn nhắc "cho vui & tham khảo".
 Trả lời JSON với keys: numerologyText (2-3 câu), wishComment (1 câu về ước mơ), funFact (1 câu thú vị).`;
 
-/** Gọi DeepSeek Chat API */
+/** Gọi DeepSeek Chat API — timeout 8s để không treo */
 export async function callDeepSeek(
   apiKey: string,
   model: string,
@@ -44,6 +44,7 @@ export async function callDeepSeek(
       max_tokens: 600,
       response_format: { type: "json_object" },
     }),
+    signal: AbortSignal.timeout(8_000),
   });
 
   if (!res.ok) {
@@ -74,9 +75,14 @@ export async function getEventSecrets(eventId: string) {
 /** Tạo cá nhân hoá — fallback nội dung tĩnh nếu không có API key */
 export async function generatePersonalization(
   eventId: string,
-  input: PersonalizationInput
+  input: PersonalizationInput,
+  options?: { skipAi?: boolean }
 ): Promise<PersonalizationOutput> {
   const staticFallback = buildStaticPersonalization(input);
+
+  if (options?.skipAi) {
+    return staticFallback;
+  }
 
   try {
     const secrets = await getEventSecrets(eventId);
@@ -124,7 +130,7 @@ export async function generatePersonalization(
   }
 }
 
-function buildStaticPersonalization(
+export function buildStaticPersonalization(
   input: PersonalizationInput
 ): PersonalizationOutput {
   const lp = LIFE_PATH_CONTENT[input.numerology.lifePath];

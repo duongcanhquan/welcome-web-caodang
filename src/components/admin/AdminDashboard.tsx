@@ -1,6 +1,7 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { GradientText } from "@/components/motion";
@@ -28,6 +29,11 @@ const TABS: { id: AdminTab; label: string; icon: string }[] = [
   { id: "cai-dat", label: "Cài đặt AI", icon: "⚙️" },
 ];
 
+function resolveTab(param: string | null): AdminTab {
+  if (param && TABS.some((t) => t.id === param)) return param as AdminTab;
+  return "tong-quan";
+}
+
 interface AdminDashboardProps {
   eventId: string;
   eventSlug: string;
@@ -41,16 +47,26 @@ export function AdminDashboard({
   eventStatus,
   snapshot,
 }: AdminDashboardProps) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const tabParam = searchParams.get("tab") as AdminTab | null;
-  const activeTab: AdminTab =
-    tabParam && TABS.some((t) => t.id === tabParam) ? tabParam : "tong-quan";
+  const [activeTab, setActiveTab] = useState<AdminTab>(() =>
+    resolveTab(searchParams.get("tab"))
+  );
 
+  // Đồng bộ khi đổi event (navigation server) — không dùng cho mỗi lần bấm tab
+  useEffect(() => {
+    setActiveTab(resolveTab(searchParams.get("tab")));
+  }, [searchParams]);
+
+  /** Đổi tab tức thì — không router.push (tránh reload RSC ~ chậm) */
   const setTab = (tab: AdminTab) => {
-    const q = new URLSearchParams(searchParams.toString());
+    setActiveTab(tab);
+    const q = new URLSearchParams(window.location.search);
     q.set("tab", tab);
-    router.push(`/admin/submissions?${q.toString()}`, { scroll: false });
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}?${q.toString()}`
+    );
   };
 
   const logout = async () => {

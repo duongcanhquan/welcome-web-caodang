@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-/** Lấy thông tin submission theo token (màn chờ) */
+/** Lấy thông tin submission theo token (màn chờ + thần số học) */
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ token: string }> }
@@ -32,21 +32,22 @@ export async function GET(
     status: string;
   };
 
-  const { data: insight } = await admin
-    .from("submission_insights")
-    .select("*")
-    .eq("submission_id", submission.id)
-    .maybeSingle();
-
-  const { count } = await admin
-    .from("submissions")
-    .select("*", { count: "exact", head: true })
-    .eq("event_id", event.id)
-    .eq("hidden", false);
+  const [insightRes, countRes] = await Promise.all([
+    admin
+      .from("submission_insights")
+      .select("*")
+      .eq("submission_id", submission.id)
+      .maybeSingle(),
+    admin
+      .from("submissions")
+      .select("*", { count: "exact", head: true })
+      .eq("event_id", event.id)
+      .eq("hidden", false),
+  ]);
 
   return NextResponse.json({
     submission,
-    insight,
-    totalLeaves: count ?? 0,
+    insight: insightRes.data,
+    totalLeaves: countRes.count ?? 0,
   });
 }

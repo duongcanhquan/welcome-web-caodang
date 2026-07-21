@@ -17,27 +17,21 @@ async function loadSnapshot(
 ): Promise<EventSettingsSnapshot> {
   try {
     const admin = createAdminClient();
-    const { data: settings } = await admin
-      .from("event_settings")
-      .select("*")
-      .eq("event_id", eventId)
-      .single();
-    const { count: totalAll } = await admin
-      .from("submissions")
-      .select("*", { count: "exact", head: true })
-      .eq("event_id", eventId);
+    const [settingsRes, countRes, secretsRes] = await Promise.all([
+      admin.from("event_settings").select("*").eq("event_id", eventId).single(),
+      admin
+        .from("submissions")
+        .select("*", { count: "exact", head: true })
+        .eq("event_id", eventId),
+      admin
+        .from("event_secrets")
+        .select("ai_enabled, deepseek_api_key")
+        .eq("event_id", eventId)
+        .maybeSingle(),
+    ]);
 
-    let aiEnabled = false;
-    let hasApiKey = false;
-    const { data: secrets } = await admin
-      .from("event_secrets")
-      .select("ai_enabled, deepseek_api_key")
-      .eq("event_id", eventId)
-      .maybeSingle();
-    if (secrets) {
-      aiEnabled = secrets.ai_enabled;
-      hasApiKey = Boolean(secrets.deepseek_api_key);
-    }
+    const settings = settingsRes.data;
+    const secrets = secretsRes.data;
 
     return {
       slug,
@@ -50,9 +44,9 @@ async function loadSnapshot(
       maxFileMb: Number(settings?.max_file_mb ?? 5),
       rateLimitPerIp: settings?.rate_limit_per_ip ?? 3,
       rootsText: settings?.roots_text ?? "",
-      totalSubmissions: totalAll ?? 0,
-      aiEnabled,
-      hasApiKey,
+      totalSubmissions: countRes.count ?? 0,
+      aiEnabled: Boolean(secrets?.ai_enabled),
+      hasApiKey: Boolean(secrets?.deepseek_api_key),
     };
   } catch {
     return {

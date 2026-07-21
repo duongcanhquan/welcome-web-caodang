@@ -1,5 +1,11 @@
+import { after } from "next/server";
 import { NextRequest, NextResponse } from "next/server";
-import { handleSubmission } from "@/lib/submissions/submit";
+import {
+  enrichSubmissionAi,
+  handleSubmission,
+} from "@/lib/submissions/submit";
+
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +16,13 @@ export async function POST(req: NextRequest) {
       "unknown";
 
     const result = await handleSubmission(formData, ip);
+
+    // AI chạy sau response — không làm sinh viên chờ DeepSeek
+    after(() => {
+      void enrichSubmissionAi(result).catch(() => {
+        /* fallback tĩnh đã có trong insight */
+      });
+    });
 
     return NextResponse.json({
       ok: true,

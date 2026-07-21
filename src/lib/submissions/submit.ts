@@ -7,6 +7,7 @@ import { getActiveEvent } from "@/lib/events/active";
 import { calculateNumerology, LIFE_PATH_CONTENT } from "@/lib/numerology";
 import { uploadSubmissionImages } from "@/lib/storage/upload";
 import { createAdminClient } from "@/lib/supabase/admin";
+import type { NumerologyResult } from "@/lib/numerology";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
@@ -28,7 +29,17 @@ export interface SubmitPayload {
   eventSlug?: string;
 }
 
-/** Gán slot lá kế tiếp — rải đều theo thứ tự gửi */
+export interface SubmissionResult {
+  token: string;
+  leafNumber: number;
+  submissionId: string;
+  eventId: string;
+  name: string;
+  major: string;
+  wish: string;
+  numerology: NumerologyResult;
+}
+
 async function assignNextSlot(
   admin: ReturnType<typeof createAdminClient>,
   eventId: string
@@ -41,19 +52,12 @@ async function assignNextSlot(
   return count ?? 0;
 }
 
-/** Kiểm tra rate-limit theo IP (ngưỡng từ event_settings) */
 async function checkRateLimit(
   admin: ReturnType<typeof createAdminClient>,
   eventId: string,
-  ipHash: string
+  ipHash: string,
+  limit: number
 ): Promise<boolean> {
-  const { data: settings } = await admin
-    .from("event_settings")
-    .select("rate_limit_per_ip")
-    .eq("event_id", eventId)
-    .single();
-
-  const limit = settings?.rate_limit_per_ip ?? 3;
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { count } = await admin
@@ -66,10 +70,14 @@ async function checkRateLimit(
   return (count ?? 0) < limit;
 }
 
+/**
+ * Upload + lưu submission + insight tĩnh.
+ * AI DeepSeek chạy sau (after) — không chặn phản hồi sinh viên.
+ */
 export async function handleSubmission(
   formData: FormData,
   ip: string
-): Promise<{ token: string; leafNumber: number; submissionId: string }> {
+): Promise<SubmissionResult> {
   const name = (formData.get("name") as string)?.trim();
   const dobRaw = formData.get("dob") as string;
   const major = formData.get("major") as string;
@@ -125,7 +133,7 @@ export async function handleSubmission(
 
   const { data: settings } = await admin
     .from("event_settings")
-    .select("max_file_mb")
+    .select("max_file_mb, rate_limit_per_ip")
     .eq("event_id", event.id)
     .single();
 
@@ -134,16 +142,20 @@ export async function handleSubmission(
     throw new Error(`Ảnh quá lớn. Tối đa ${settings?.max_file_mb ?? 5}MB.`);
   }
 
-  const allowed = await checkRateLimit(admin, event.id, ipHash);
+  const rateLimit = settings?.rate_limit_per_ip ?? 3;
+  const [allowed, slotIndex, buffer] = await Promise.all([
+    checkRateLimit(admin, event.id, ipHash, rateLimit),
+    assignNextSlot(admin, event.id),
+    file.arrayBuffer().then((ab) => Buffer.from(ab)),
+  ]);
+
   if (!allowed) {
     throw new Error("Bạn đã gửi quá số lần cho phép. Thử lại sau 24 giờ nhé.");
   }
 
   const token = nanoid(32);
   const submissionId = crypto.randomUUID();
-  const slotIndex = await assignNextSlot(admin, event.id);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   const { leafUrl, photoUrl } = await uploadSubmissionImages(
     submissionId,
     buffer
@@ -165,16 +177,14 @@ export async function handleSubmission(
 
   if (insertError) throw insertError;
 
-  // Tính thần số học + lưu insights
   const numerology = calculateNumerology(dob);
   const lpContent = LIFE_PATH_CONTENT[numerology.lifePath];
 
-  const personalization = await generatePersonalization(event.id, {
-    name,
-    major,
-    wish,
-    numerology,
-  });
+  const personalization = await generatePersonalization(
+    event.id,
+    { name, major, wish, numerology },
+    { skipAi: true }
+  );
 
   await admin.from("submission_insights").insert({
     submission_id: submissionId,
@@ -187,12 +197,39 @@ export async function handleSubmission(
       wishComment: personalization.wishComment,
       funFact: personalization.funFact,
     },
-    ai_generated_at: new Date().toISOString(),
   });
 
   return {
     token,
     leafNumber: slotIndex + 1,
     submissionId,
+    eventId: event.id,
+    name,
+    major,
+    wish,
+    numerology,
   };
+}
+
+/** Enrich AI sau khi đã trả token cho client */
+export async function enrichSubmissionAi(result: SubmissionResult): Promise<void> {
+  const personalization = await generatePersonalization(result.eventId, {
+    name: result.name,
+    major: result.major,
+    wish: result.wish,
+    numerology: result.numerology,
+  });
+
+  const admin = createAdminClient();
+  await admin
+    .from("submission_insights")
+    .update({
+      ai_numerology: personalization.numerologyText,
+      ai_personalization: {
+        wishComment: personalization.wishComment,
+        funFact: personalization.funFact,
+      },
+      ai_generated_at: new Date().toISOString(),
+    })
+    .eq("submission_id", result.submissionId);
 }

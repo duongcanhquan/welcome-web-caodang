@@ -34,6 +34,7 @@ interface MeData {
     numerology: NumerologyResult & { content: LifePathContent };
     ai_numerology: string | null;
     ai_personalization: { wishComment?: string; funFact?: string };
+    ai_generated_at?: string | null;
   } | null;
   totalLeaves: number;
 }
@@ -90,6 +91,29 @@ export function WaitingPageClient({
   useEffect(() => {
     load();
   }, [load]);
+
+  // Poll ngắn để nhận bản AI (enrich sau submit) nếu đang chờ
+  useEffect(() => {
+    if (!isNewSubmission || !fetchDone) return;
+    if (data?.insight?.ai_generated_at) return;
+
+    let tries = 0;
+    const id = setInterval(async () => {
+      tries += 1;
+      if (tries > 8) {
+        clearInterval(id);
+        return;
+      }
+      const res = await fetch(`/api/me/${token}`);
+      if (!res.ok) return;
+      const json = (await res.json()) as MeData;
+      if (json.insight?.ai_generated_at) {
+        setData(json);
+        clearInterval(id);
+      }
+    }, 2500);
+    return () => clearInterval(id);
+  }, [isNewSubmission, fetchDone, data?.insight?.ai_generated_at, token]);
 
   useEffect(() => {
     if (!data?.submission.events.id) return;

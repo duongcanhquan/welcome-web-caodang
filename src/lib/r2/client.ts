@@ -19,6 +19,9 @@ export function getR2Client(): S3Client {
       accessKeyId,
       secretAccessKey,
     },
+    // R2 không cần checksum linh hoạt của AWS SDK v3 — giảm lỗi buffer
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    responseChecksumValidation: "WHEN_REQUIRED",
   });
 
   return _client;

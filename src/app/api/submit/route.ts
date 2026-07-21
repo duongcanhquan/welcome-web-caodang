@@ -30,8 +30,15 @@ export async function POST(req: NextRequest) {
       leafNumber: result.leafNumber,
     });
   } catch (err) {
-    const message =
+    const raw =
       err instanceof Error ? err.message : "Gửi thất bại, thử lại nhé.";
+    // Không lộ lỗi nội bộ (SharedArrayBuffer, stack AWS, …)
+    const message =
+      /ArrayBuffer|SharedArrayBuffer|ECONN|ETIMEDOUT|fetch failed|Unexpected/i.test(
+        raw
+      )
+        ? "Không tải được ảnh lên. Thử lại hoặc chọn ảnh khác nhé."
+        : raw;
     return NextResponse.json({ ok: false, error: message }, { status: 400 });
   }
 }

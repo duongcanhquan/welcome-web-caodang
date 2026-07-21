@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
@@ -26,6 +25,7 @@ type AnimatedButtonProps = {
   onClick?: () => void;
 };
 
+/** Nút phản hồi nhanh — CSS active thay vì spring motion (mobile đông người) */
 export function AnimatedButton({
   children,
   href,
@@ -35,33 +35,24 @@ export function AnimatedButton({
   disabled,
   onClick,
 }: AnimatedButtonProps) {
-  const base = variants[variant];
+  const base = `${variants[variant]} transition-transform duration-75 active:scale-[0.98]`;
 
   if (href) {
     return (
-      <motion.div
-        whileHover={{ scale: 1.04, y: -2 }}
-        whileTap={{ scale: 0.97 }}
-        transition={{ type: "spring", stiffness: 400, damping: 20 }}
-      >
-        <Link href={href} className={`inline-block ${base} ${className}`}>
-          {children}
-        </Link>
-      </motion.div>
+      <Link href={href} className={`inline-block ${base} ${className}`}>
+        {children}
+      </Link>
     );
   }
 
   return (
-    <motion.button
+    <button
       type={type}
       disabled={disabled}
       onClick={onClick}
       className={`${base} ${className}`}
-      whileHover={{ scale: 1.04, y: -2 }}
-      whileTap={{ scale: 0.97 }}
-      transition={{ type: "spring", stiffness: 400, damping: 20 }}
     >
       {children}
-    </motion.button>
+    </button>
   );
 }

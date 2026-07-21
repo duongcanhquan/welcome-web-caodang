@@ -1,5 +1,6 @@
 import JSZip from "jszip";
 import sharp from "sharp";
+import { toOwnedBuffer } from "@/lib/buffer/owned";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MosaicLeaf } from "@/lib/types/database";
 
@@ -77,7 +78,7 @@ async function fetchBuffer(url: string): Promise<Buffer | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
-    return Buffer.from(await res.arrayBuffer());
+    return toOwnedBuffer(await res.arrayBuffer());
   } catch {
     return null;
   }

@@ -37,6 +37,8 @@ export function LiveTreeView({
 
   useEffect(() => {
     const supabase = createClient();
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel(`tree-live-${eventId}`)
       .on(
@@ -47,11 +49,16 @@ export function LiveTreeView({
           table: "submissions",
           filter: `event_id=eq.${eventId}`,
         },
-        async (payload) => {
+        (payload) => {
           const row = payload.new as { id: string; name?: string; major?: string };
           setNewLeafId(row.id);
           setTimeout(() => setNewLeafId(null), 2000);
-          await refreshLayout();
+
+          // Debounce layout refresh — tránh storm khi đông SV nộp cùng lúc
+          if (refreshTimer) clearTimeout(refreshTimer);
+          refreshTimer = setTimeout(() => {
+            void refreshLayout();
+          }, 800);
 
           setTotalLeaves((prev) => {
             const newTotal = prev + 1;
@@ -75,6 +82,7 @@ export function LiveTreeView({
       .subscribe();
 
     return () => {
+      if (refreshTimer) clearTimeout(refreshTimer);
       supabase.removeChannel(channel);
     };
   }, [eventId, eventSlug, refreshLayout, blossomEvery]);

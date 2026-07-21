@@ -5,17 +5,26 @@ import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { parseDobDdMmYyyy } from "@/lib/date/parse-dob";
 import { getActiveEvent } from "@/lib/events/active";
 import { calculateNumerology, LIFE_PATH_CONTENT } from "@/lib/numerology";
+import { fileToOwnedBuffer } from "@/lib/buffer/owned";
 import { uploadSubmissionImages } from "@/lib/storage/upload";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { NumerologyResult } from "@/lib/numerology";
 
 const ALLOWED_MIME = new Set([
   "image/jpeg",
+  "image/jpg",
   "image/png",
   "image/webp",
   "image/heic",
   "image/heif",
 ]);
+
+function isAllowedImageType(type: string): boolean {
+  const t = (type || "").toLowerCase().trim();
+  // iOS / một số máy trả type rỗng hoặc octet-stream — Sharp sẽ xác thực sau
+  if (!t || t === "application/octet-stream") return true;
+  return ALLOWED_MIME.has(t);
+}
 
 function hashIp(ip: string): string {
   return createHash("sha256").update(ip + (process.env.IP_HASH_SALT ?? "")).digest("hex");
@@ -44,12 +53,23 @@ async function assignNextSlot(
   admin: ReturnType<typeof createAdminClient>,
   eventId: string
 ): Promise<number> {
-  const { count } = await admin
-    .from("submissions")
-    .select("*", { count: "exact", head: true })
-    .eq("event_id", eventId);
+  const { data, error } = await admin.rpc("claim_next_submission_slot", {
+    p_event_id: eventId,
+  });
 
-  return count ?? 0;
+  if (!error && typeof data === "number") {
+    return data;
+  }
+
+  // Fallback nếu chưa chạy migration claim_next_submission_slot
+  const { data: rows } = await admin
+    .from("submissions")
+    .select("slot_index")
+    .eq("event_id", eventId)
+    .order("slot_index", { ascending: false })
+    .limit(1);
+
+  return (rows?.[0]?.slot_index ?? -1) + 1;
 }
 
 async function checkRateLimit(
@@ -113,7 +133,7 @@ export async function handleSubmission(
     throw new Error("Vui lòng chọn ảnh.");
   }
 
-  if (!ALLOWED_MIME.has(file.type)) {
+  if (!isAllowedImageType(file.type)) {
     throw new Error("Chỉ chấp nhận file ảnh (JPEG, PNG, WebP).");
   }
 
@@ -143,23 +163,38 @@ export async function handleSubmission(
   }
 
   const rateLimit = settings?.rate_limit_per_ip ?? 3;
-  const [allowed, slotIndex, buffer] = await Promise.all([
-    checkRateLimit(admin, event.id, ipHash, rateLimit),
-    assignNextSlot(admin, event.id),
-    file.arrayBuffer().then((ab) => Buffer.from(ab)),
-  ]);
-
+  const allowed = await checkRateLimit(admin, event.id, ipHash, rateLimit);
   if (!allowed) {
     throw new Error("Bạn đã gửi quá số lần cho phép. Thử lại sau 24 giờ nhé.");
   }
 
+  // Slot + đọc ảnh song song sau khi đã qua rate limit
+  const [slotIndex, buffer] = await Promise.all([
+    assignNextSlot(admin, event.id),
+    fileToOwnedBuffer(file),
+  ]);
+
   const token = nanoid(32);
   const submissionId = crypto.randomUUID();
 
-  const { leafUrl, photoUrl } = await uploadSubmissionImages(
-    submissionId,
-    buffer
-  );
+  let leafUrl: string;
+  let photoUrl: string;
+  try {
+    ({ leafUrl, photoUrl } = await uploadSubmissionImages(submissionId, buffer));
+  } catch (err) {
+    const raw = err instanceof Error ? err.message : "";
+    if (/ArrayBuffer|SharedArrayBuffer|Unsupported input|Input buffer/i.test(raw)) {
+      throw new Error(
+        "Không xử lý được ảnh. Thử chụp lại hoặc chọn ảnh JPEG/PNG khác nhé."
+      );
+    }
+    if (/R2|credentials|Access Denied|Forbidden|networking|fetch failed/i.test(raw)) {
+      throw new Error("Không tải được ảnh lên máy chủ. Thử lại sau vài giây nhé.");
+    }
+    throw err instanceof Error
+      ? err
+      : new Error("Không tải được ảnh lên. Thử lại nhé.");
+  }
 
   const { error: insertError } = await admin.from("submissions").insert({
     id: submissionId,

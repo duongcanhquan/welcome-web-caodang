@@ -43,6 +43,7 @@ export function MagicalSkyBackground({
 }: MagicalSkyBackgroundProps) {
   const ref = useRef<HTMLDivElement>(null);
   const prefersReduced = usePrefersReducedMotion();
+  const lite = variant === "tree" || variant === "twilight";
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start start", "end start"],
@@ -52,15 +53,22 @@ export function MagicalSkyBackground({
 
   const sparkles = useMemo(
     () =>
-      Array.from({ length: 24 }, (_, i) => ({
+      Array.from({ length: lite ? 8 : 24 }, (_, i) => ({
         id: i,
         left: `${(i * 13.7) % 100}%`,
         top: `${(i * 9.3 + 10) % 70}%`,
         delay: (i * 0.35) % 4,
         size: 2 + (i % 3),
       })),
-    []
+    [lite]
   );
+
+  const petals = useMemo(
+    () => (lite ? PETALS.slice(0, 6) : PETALS),
+    [lite]
+  );
+
+  const clouds = lite ? CLOUDS.slice(0, 2) : CLOUDS;
 
   return (
     <div
@@ -107,7 +115,7 @@ export function MagicalSkyBackground({
 
       {/* Cloud layers */}
       {!prefersReduced &&
-        CLOUDS.map((c, i) => (
+        clouds.map((c, i) => (
           <motion.div
             key={i}
             className="absolute rounded-full blur-2xl"
@@ -156,7 +164,7 @@ export function MagicalSkyBackground({
 
       {/* Wind petals / leaves */}
       {!prefersReduced &&
-        PETALS.map((p) => (
+        petals.map((p) => (
           <motion.span
             key={p.id}
             className="absolute select-none opacity-60"

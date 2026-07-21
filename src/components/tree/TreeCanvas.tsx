@@ -83,7 +83,7 @@ export function TreeCanvas({
     >
       <MagicalSkyBackground variant={skyVariant} className="z-0" />
 
-      {(presentation || mode === "view" || mode === "live") && (
+      {(presentation || mode === "view") && (
         <WindFireflies vivid={presentation} />
       )}
 

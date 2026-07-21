@@ -2,6 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { mkdir, writeFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
+import { toOwnedBuffer } from "@/lib/buffer/owned";
 import { hasR2Env, publicEnv } from "@/lib/config/env";
 import { getR2Client, getR2PublicUrl } from "@/lib/r2/client";
 
@@ -20,19 +21,23 @@ export interface ProcessedImages {
 export async function processSubmissionImages(
   buffer: Buffer
 ): Promise<{ leaf: Buffer; photo: Buffer }> {
-  const leaf = await sharp(buffer)
-    .rotate()
-    .resize(220, 220, { fit: "cover", position: "attention" })
-    .webp({ quality: 72, effort: 4 })
-    .toBuffer();
+  // Đảm bảo input không còn SharedArrayBuffer (Sharp + R2 checksum)
+  const input = toOwnedBuffer(buffer);
 
-  const photo = await sharp(buffer)
-    .rotate()
-    .resize(640, 640, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 78, effort: 4 })
-    .toBuffer();
+  const [leaf, photo] = await Promise.all([
+    sharp(input)
+      .rotate()
+      .resize(220, 220, { fit: "cover", position: "attention" })
+      .webp({ quality: 72, effort: 4 })
+      .toBuffer(),
+    sharp(input)
+      .rotate()
+      .resize(640, 640, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 78, effort: 4 })
+      .toBuffer(),
+  ]);
 
-  return { leaf, photo };
+  return { leaf: toOwnedBuffer(leaf), photo: toOwnedBuffer(photo) };
 }
 
 async function uploadToR2(
@@ -47,7 +52,8 @@ async function uploadToR2(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: body,
+      // Uint8Array trên ArrayBuffer thuần — tránh lỗi Smithy SharedArrayBuffer
+      Body: toOwnedBuffer(body),
       ContentType: contentType,
     })
   );

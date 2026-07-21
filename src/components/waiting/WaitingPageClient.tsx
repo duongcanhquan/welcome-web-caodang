@@ -80,12 +80,15 @@ export function WaitingPageClient({
     setLocked(json.submission.events.status === "locked");
     setFetchDone(true);
 
+    // Cây tải nền — không chặn hiện thần số học
     const slug = json.submission.events.slug;
-    const treeRes = await fetch(`/api/tree/${slug}`);
-    if (treeRes.ok) {
-      const treeData = (await treeRes.json()) as { layout: TreeLayout };
-      setTreeLayout(treeData.layout);
-    }
+    void fetch(`/api/tree/${slug}`)
+      .then(async (treeRes) => {
+        if (!treeRes.ok) return;
+        const treeData = (await treeRes.json()) as { layout: TreeLayout };
+        setTreeLayout(treeData.layout);
+      })
+      .catch(() => {});
   }, [token]);
 
   useEffect(() => {
@@ -122,6 +125,8 @@ export function WaitingPageClient({
     const eventId = data.submission.events.id;
     const slug = data.submission.events.slug;
 
+    let treeRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
     const channel = supabase
       .channel(`waiting-${eventId}`)
       .on(
@@ -132,13 +137,19 @@ export function WaitingPageClient({
           table: "submissions",
           filter: `event_id=eq.${eventId}`,
         },
-        async () => {
+        () => {
           setTotalLeaves((n) => n + 1);
-          const treeRes = await fetch(`/api/tree/${slug}`);
-          if (treeRes.ok) {
-            const treeData = (await treeRes.json()) as { layout: TreeLayout };
-            setTreeLayout(treeData.layout);
-          }
+          // Debounce — tránh storm khi nhiều SV nộp cùng lúc
+          if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
+          treeRefreshTimer = setTimeout(() => {
+            void fetch(`/api/tree/${slug}`)
+              .then(async (treeRes) => {
+                if (!treeRes.ok) return;
+                const treeData = (await treeRes.json()) as { layout: TreeLayout };
+                setTreeLayout(treeData.layout);
+              })
+              .catch(() => {});
+          }, 1200);
         }
       )
       .on(
@@ -160,6 +171,7 @@ export function WaitingPageClient({
       .subscribe();
 
     return () => {
+      if (treeRefreshTimer) clearTimeout(treeRefreshTimer);
       supabase.removeChannel(channel);
     };
   }, [data?.submission.events.id, data?.submission.events.slug]);

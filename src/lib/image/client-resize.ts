@@ -1,20 +1,16 @@
 /**
- * Nén/resize ảnh phía client trước khi upload — giảm băng thông & tải server.
- *
- * Mục tiêu: cạnh dài ≤ maxEdge px, JPEG ~0.72–0.82, thường dưới ~250KB.
+ * Nén/resize ảnh phía client trước khi upload — tối ưu tốc độ trên mobile.
  */
 
-const DEFAULT_MAX_EDGE = 720;
-const TARGET_MAX_BYTES = 280 * 1024; // ~280KB
-const MIN_QUALITY = 0.55;
+const DEFAULT_MAX_EDGE = 640;
+const TARGET_MAX_BYTES = 220 * 1024;
+const MIN_QUALITY = 0.58;
 
 export interface ResizeResult {
   blob: Blob;
   width: number;
   height: number;
-  /** Bytes trước khi nén (file gốc) */
   originalBytes: number;
-  /** Bytes sau khi nén */
   compressedBytes: number;
 }
 
@@ -58,10 +54,10 @@ function drawToCanvas(
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext("2d");
+  const ctx = canvas.getContext("2d", { alpha: false });
   if (!ctx) throw new Error("Canvas không khả dụng");
   ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  ctx.imageSmoothingQuality = "medium";
   ctx.drawImage(source, 0, 0, width, height);
   return canvas;
 }
@@ -81,10 +77,6 @@ function computeSize(
   };
 }
 
-/**
- * Resize + nén JPEG phía trình duyệt.
- * Tự hạ quality nếu vẫn lớn hơn TARGET_MAX_BYTES.
- */
 export async function resizeImageClient(
   file: File,
   maxEdge = DEFAULT_MAX_EDGE
@@ -93,7 +85,7 @@ export async function resizeImageClient(
   return result.blob;
 }
 
-/** Bản đầy đủ — có thống kê dung lượng (dùng cho UI) */
+/** Nén nhanh — ít vòng lặp quality, ưu tiên createImageBitmap */
 export async function resizeImageClientDetailed(
   file: File,
   maxEdge = DEFAULT_MAX_EDGE
@@ -124,18 +116,19 @@ export async function resizeImageClientDetailed(
     canvas = drawToCanvas(img, width, height);
   }
 
-  let quality = 0.8;
+  // 1–2 lần encode thay vì vòng while dài
+  let quality = 0.78;
   let blob = await canvasToBlob(canvas, quality);
-
-  // Hạ chất lượng dần nếu vẫn quá lớn
-  while (blob.size > TARGET_MAX_BYTES && quality > MIN_QUALITY) {
-    quality = Math.max(MIN_QUALITY, quality - 0.08);
+  if (blob.size > TARGET_MAX_BYTES) {
+    quality = 0.65;
     blob = await canvasToBlob(canvas, quality);
   }
+  if (blob.size > TARGET_MAX_BYTES && quality > MIN_QUALITY) {
+    blob = await canvasToBlob(canvas, MIN_QUALITY);
+  }
 
-  // Vẫn quá lớn → thu nhỏ thêm một bậc
-  if (blob.size > TARGET_MAX_BYTES && maxEdge > 480) {
-    return resizeImageClientDetailed(file, Math.round(maxEdge * 0.75));
+  if (blob.size > TARGET_MAX_BYTES && maxEdge > 420) {
+    return resizeImageClientDetailed(file, Math.round(maxEdge * 0.7));
   }
 
   return {
@@ -153,7 +146,6 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** Lưu token vào localStorage sau khi gửi */
 export function saveSubmissionToken(token: string): void {
   try {
     localStorage.setItem("cay_khoa_token", token);

@@ -17,6 +17,7 @@ import type { TreeLayout } from "@/lib/tree/types";
 import type { LifePathContent } from "@/lib/numerology";
 import type { NumerologyResult } from "@/lib/numerology";
 import { getMajorMatchMessage } from "@/lib/numerology";
+import { isNumerologyLongEnough } from "@/lib/ai/numerology-length";
 import { tryCreateClient } from "@/lib/supabase/client";
 import { EventCohortBadge } from "@/components/events/EventCohortBadge";
 
@@ -88,14 +89,13 @@ export function WaitingPageClient({
     setLocked(json.submission.events.status === "locked");
     setFetchDone(true);
 
-    // Đã có bản AI trong Supabase → hiện ngay, không chờ / không gọi AI lại
+    // Bản AI đủ dài (≥1000 chữ) → hiện ngay
     const alreadyAi =
-      Boolean(json.insight?.ai_generated_at) ||
-      (json.insight?.ai_numerology?.trim().length ?? 0) >= 1800;
+      isNumerologyLongEnough(json.insight?.ai_numerology) &&
+      Boolean(json.insight?.ai_generated_at);
     if (alreadyAi) {
       setMinWaitDone(true);
       setRevealNumerology(true);
-      // Bỏ ?new=1 để F5/mở lại không vào màn chờ tạo mới
       if (typeof window !== "undefined" && window.location.search.includes("new=1")) {
         const url = new URL(window.location.href);
         url.searchParams.delete("new");
@@ -118,27 +118,43 @@ export function WaitingPageClient({
     load();
   }, [load]);
 
-  // Poll CHỈ khi vừa nộp và chưa có AI — không regenerate
+  // Poll + gọi enrich khi vừa nộp và bài còn ngắn
   useEffect(() => {
     if (!isNewSubmission || !fetchDone) return;
-    if (data?.insight?.ai_generated_at) return;
-    if ((data?.insight?.ai_numerology?.trim().length ?? 0) >= 1800) return;
+    if (
+      data?.insight?.ai_generated_at &&
+      isNumerologyLongEnough(data.insight.ai_numerology)
+    ) {
+      return;
+    }
 
     let tries = 0;
+    let enrichInFlight = false;
     const id = setInterval(async () => {
       tries += 1;
-      if (tries > 24) {
+      if (tries > 40) {
         clearInterval(id);
         return;
       }
+
+      // Mỗi 2 nhịp → nhắc server viết tiếp (nếu còn ngắn)
+      if (!enrichInFlight && tries % 2 === 1) {
+        enrichInFlight = true;
+        void fetch(`/api/me/${token}/enrich`, { method: "POST" })
+          .catch(() => {})
+          .finally(() => {
+            enrichInFlight = false;
+          });
+      }
+
       const res = await fetch(`/api/me/${token}`);
       if (!res.ok) return;
       const json = (await res.json()) as MeData;
+      setData(json);
       const ready =
-        Boolean(json.insight?.ai_generated_at) ||
-        (json.insight?.ai_numerology?.trim().length ?? 0) >= 1800;
+        Boolean(json.insight?.ai_generated_at) &&
+        isNumerologyLongEnough(json.insight?.ai_numerology);
       if (ready) {
-        setData(json);
         setRevealNumerology(true);
         clearInterval(id);
         if (typeof window !== "undefined") {
@@ -149,7 +165,7 @@ export function WaitingPageClient({
           }
         }
       }
-    }, 3000);
+    }, 4000);
     return () => clearInterval(id);
   }, [
     isNewSubmission,
@@ -416,6 +432,10 @@ export function WaitingPageClient({
               funFact={insight?.ai_personalization?.funFact}
               majorMatch={getMajorMatchMessage(numerology.lifePath, submission.major)}
               reveal={isNewSubmission}
+              writingFull={
+                isNewSubmission &&
+                !isNumerologyLongEnough(insight?.ai_numerology)
+              }
             />
           </section>
         )}

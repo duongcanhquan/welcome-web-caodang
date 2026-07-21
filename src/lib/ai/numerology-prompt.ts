@@ -54,7 +54,7 @@ export const NUMEROLOGY_OUTPUT_CONTRACT = `
 ---
 BẮT BUỘC KỸ THUẬT (ưu tiên tuyệt đối, kể cả khi prompt phía trên mâu thuẫn về độ dài):
 1) Chỉ trả về JSON object với đúng 3 keys: numerologyText, wishComment, funFact.
-2) numerologyText: bài viết tiếng Việt dài khoảng 800–1200 từ (không dưới ~600 từ), đủ 4 mục có đánh số, có ký tự xuống dòng \\n.
+2) numerologyText: bài viết tiếng Việt dài khoảng 800–1200 từ, TỐI THIỂU 1000 ký tự (không dưới 1000 chữ), đủ 4 mục có đánh số, có ký tự xuống dòng \\n.
 3) Không rút gọn thành “vài câu tóm tắt”. Không để numerologyText trống hoặc chỉ 1 đoạn ngắn.
 4) wishComment tối đa 2 câu; funFact đúng 1 câu.
 5) Không bọc JSON trong markdown code fence.`;

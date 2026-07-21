@@ -5,8 +5,16 @@ import {
   DEFAULT_NUMEROLOGY_PROMPT,
   NUMEROLOGY_OUTPUT_CONTRACT,
 } from "@/lib/ai/numerology-prompt";
+import {
+  MIN_NUMEROLOGY_CHARS,
+  isNumerologyLongEnough,
+} from "@/lib/ai/numerology-length";
 
 export { DEFAULT_NUMEROLOGY_PROMPT } from "@/lib/ai/numerology-prompt";
+export {
+  MIN_NUMEROLOGY_CHARS,
+  isNumerologyLongEnough,
+} from "@/lib/ai/numerology-length";
 
 export interface DeepSeekMessage {
   role: "system" | "user" | "assistant";
@@ -28,9 +36,6 @@ export interface PersonalizationOutput {
   funFact: string;
 }
 
-/** ~600 từ tiếng Việt ≈ 1800+ ký tự (kể cả khoảng trắng) */
-const MIN_NUMEROLOGY_CHARS = 1800;
-
 function formatDobDisplay(iso: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const [y, m, d] = iso.split("-");
@@ -41,10 +46,6 @@ function buildSystemPrompt(custom?: string | null): string {
   const base =
     (custom && custom.trim()) || DEFAULT_NUMEROLOGY_PROMPT;
   return `${base.trim()}\n${NUMEROLOGY_OUTPUT_CONTRACT}`;
-}
-
-function isLongEnough(text: string | undefined | null): boolean {
-  return (text?.trim().length ?? 0) >= MIN_NUMEROLOGY_CHARS;
 }
 
 /** Gọi DeepSeek Chat API — bài dài cần token + timeout lớn */
@@ -63,11 +64,10 @@ export async function callDeepSeek(
       model,
       messages,
       temperature: 0.85,
-      // ~1000 từ VI + JSON overhead
-      max_tokens: 4096,
+      max_tokens: 8192,
       response_format: { type: "json_object" },
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(90_000),
   });
 
   if (!res.ok) {
@@ -82,16 +82,49 @@ export async function callDeepSeek(
   return data.choices[0]?.message?.content ?? "";
 }
 
+/** Lấy JSON object từ raw (kể cả khi AI bọc ```json) */
+function extractJsonObject(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) return trimmed;
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced?.[1]) return fenced[1].trim();
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) return trimmed.slice(start, end + 1);
+  return trimmed;
+}
+
 function parsePersonalization(
   raw: string,
   fallback: PersonalizationOutput
 ): PersonalizationOutput {
-  const parsed = JSON.parse(raw) as Partial<PersonalizationOutput>;
-  return {
-    numerologyText: parsed.numerologyText?.trim() || fallback.numerologyText,
-    wishComment: parsed.wishComment?.trim() || fallback.wishComment,
-    funFact: parsed.funFact?.trim() || fallback.funFact,
-  };
+  try {
+    const parsed = JSON.parse(extractJsonObject(raw)) as Partial<PersonalizationOutput> & {
+      numerology_text?: string;
+      reading?: string;
+    };
+    const text =
+      parsed.numerologyText?.trim() ||
+      parsed.numerology_text?.trim() ||
+      parsed.reading?.trim() ||
+      "";
+    return {
+      numerologyText: text || fallback.numerologyText,
+      wishComment: parsed.wishComment?.trim() || fallback.wishComment,
+      funFact: parsed.funFact?.trim() || fallback.funFact,
+    };
+  } catch {
+    // AI trả plain text dài — dùng luôn nếu đủ dài
+    const plain = raw.replace(/```[\s\S]*?```/g, "").trim();
+    if (isNumerologyLongEnough(plain)) {
+      return {
+        numerologyText: plain,
+        wishComment: fallback.wishComment,
+        funFact: fallback.funFact,
+      };
+    }
+    return fallback;
+  }
 }
 
 /** Lấy cấu hình DeepSeek từ event_secrets (admin-only table) */
@@ -175,17 +208,23 @@ export async function generatePersonalization(
       staticFallback
     );
 
-    // Nếu quá ngắn — nhắc viết lại đủ độ dài (1 lần)
-    if (!isLongEnough(result.numerologyText)) {
+    // Nếu quá ngắn — nhắc viết lại đủ độ dài (tối đa 2 lần)
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (isNumerologyLongEnough(result.numerologyText)) break;
+
       const retryMessages: DeepSeekMessage[] = [
         ...messages,
         {
           role: "assistant",
-          content: JSON.stringify(result),
+          content: JSON.stringify({
+            numerologyText: result.numerologyText.slice(0, 400) + "…",
+            wishComment: result.wishComment,
+            funFact: result.funFact,
+          }),
         },
         {
           role: "user",
-          content: `numerologyText còn quá ngắn (${result.numerologyText.length} ký tự). Viết LẠI toàn bộ JSON với numerologyText dài 800–1200 từ, đủ 4 mục. Giữ wishComment và funFact ngắn.`,
+          content: `numerologyText mới chỉ có ${result.numerologyText.length} ký tự — QUÁ NGẮN. Viết LẠI toàn bộ JSON: numerologyText tối thiểu 1000 ký tự (mục tiêu 800–1200 từ), đủ 4 mục có đánh số và \\n. wishComment ≤2 câu, funFact 1 câu.`,
         },
       ];
       try {
@@ -204,7 +243,7 @@ export async function generatePersonalization(
           result = retry;
         }
       } catch {
-        /* giữ bản đầu */
+        break;
       }
     }
 

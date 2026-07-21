@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import { nanoid } from "nanoid";
 import { generatePersonalization } from "@/lib/ai/deepseek";
+import { isNumerologyLongEnough } from "@/lib/ai/numerology-length";
 import { DEFAULT_EVENT_SLUG, EVENT_MAJORS } from "@/lib/constants";
 import { parseDobDdMmYyyy } from "@/lib/date/parse-dob";
 import { getActiveEvent } from "@/lib/events/active";
@@ -248,7 +249,7 @@ export async function handleSubmission(
   };
 }
 
-/** Enrich AI sau khi đã trả token cho client — CHỈ CHẠY MỘT LẦN mỗi submission */
+/** Enrich AI sau khi đã trả token cho client — chỉ khoá khi bài đủ dài */
 export async function enrichSubmissionAi(result: SubmissionResult): Promise<void> {
   const admin = createAdminClient();
 
@@ -258,12 +259,11 @@ export async function enrichSubmissionAi(result: SubmissionResult): Promise<void
     .eq("submission_id", result.submissionId)
     .maybeSingle();
 
-  // Đã có bản AI lưu trong Supabase → không gọi DeepSeek lần 2/3
-  if (existing?.ai_generated_at) {
+  // Đã có bản AI đủ dài → xong
+  if (existing?.ai_generated_at && isNumerologyLongEnough(existing.ai_numerology)) {
     return;
   }
-  // Bản dài đã lưu (legacy / race) cũng coi như xong
-  if ((existing?.ai_numerology?.trim().length ?? 0) >= 1800) {
+  if (isNumerologyLongEnough(existing?.ai_numerology)) {
     await admin
       .from("submission_insights")
       .update({ ai_generated_at: new Date().toISOString() })
@@ -280,21 +280,30 @@ export async function enrichSubmissionAi(result: SubmissionResult): Promise<void
     numerology: result.numerology,
   });
 
-  // Conditional update — nếu request khác đã ghi rồi thì không ghi đè
-  const { data: updated } = await admin
-    .from("submission_insights")
-    .update({
-      ai_numerology: personalization.numerologyText,
-      ai_personalization: {
-        wishComment: personalization.wishComment,
-        funFact: personalization.funFact,
-      },
-      ai_generated_at: new Date().toISOString(),
-    })
-    .eq("submission_id", result.submissionId)
-    .is("ai_generated_at", null)
-    .select("submission_id");
+  const longEnough = isNumerologyLongEnough(personalization.numerologyText);
+  const betterThanExisting =
+    (personalization.numerologyText?.length ?? 0) >
+    (existing?.ai_numerology?.trim().length ?? 0);
 
-  // Nếu không update được hàng nào = đã có bản khác ghi trước → bỏ qua
-  void updated;
+  // Chỉ ghi nếu dài hơn bản tạm; chỉ set ai_generated_at khi ĐỦ DÀI
+  if (!betterThanExisting && !longEnough) {
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    ai_numerology: personalization.numerologyText,
+    ai_personalization: {
+      wishComment: personalization.wishComment,
+      funFact: personalization.funFact,
+    },
+  };
+  if (longEnough) {
+    payload.ai_generated_at = new Date().toISOString();
+  }
+
+  // Cho phép ghi đè bản ngắn (kể cả đã set ai_generated_at nhầm)
+  await admin
+    .from("submission_insights")
+    .update(payload)
+    .eq("submission_id", result.submissionId);
 }

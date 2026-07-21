@@ -15,6 +15,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "img.cay.vietmycollege.com",
       },
+      {
+        protocol: "https",
+        hostname: "img.welcome.vietmycollege.com",
+      },
+      {
+        protocol: "https",
+        hostname: "**.r2.dev",
+      },
     ],
   },
 };

@@ -15,7 +15,7 @@ import { resolve } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 const DEFAULT_EMAIL = "quan.duong@caodangvietmy.edu.vn";
-const DEFAULT_PASSWORD = "canhquan1221";
+const DEFAULT_PASSWORD = "canhquan@1221";
 
 function loadEnvLocal() {
   try {

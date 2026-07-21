@@ -131,14 +131,12 @@ export function AdminSecretsForm({ eventId, embedded }: AdminSecretsFormProps) {
           </div>
           <p className="rounded-lg bg-brand-navy/5 px-3 py-2 text-sm leading-relaxed text-ink-muted">
             <strong className="text-foreground">Không cần điền tên / ngày sinh</strong>{" "}
-            vào prompt. Mỗi lần SV gửi form, hệ thống tự gửi JSON gồm{" "}
-            <code className="text-xs">name</code>,{" "}
-            <code className="text-xs">dobDisplay</code> (dd/mm/yyyy),{" "}
-            <code className="text-xs">lifePath</code>,{" "}
-            <code className="text-xs">major</code>,{" "}
-            <code className="text-xs">wish</code>, … Ô này chỉ là{" "}
-            <em>system prompt</em> (vai trò + cấu trúc bài). Để trống = dùng mặc
-            định Gen Z của hệ thống.
+            vào prompt. Hệ thống tự gửi JSON (<code className="text-xs">name</code>,{" "}
+            <code className="text-xs">dobDisplay</code>,{" "}
+            <code className="text-xs">lifePath</code>, …).
+            Bài AI mặc định ~<strong>800–1200 từ</strong>. Nếu bạn dán prompt riêng,
+            vẫn nên yêu cầu độ dài tương tự — server sẽ gắn thêm ràng buộc JSON + độ
+            dài tối thiểu.
           </p>
           <textarea
             value={numerologyPrompt}

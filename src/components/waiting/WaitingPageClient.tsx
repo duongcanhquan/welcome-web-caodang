@@ -103,7 +103,7 @@ export function WaitingPageClient({
     load();
   }, [load]);
 
-  // Poll ngắn để nhận bản AI (enrich sau submit) nếu đang chờ
+  // Poll để nhận bản AI dài (~800–1200 từ, có thể mất 30–55s)
   useEffect(() => {
     if (!isNewSubmission || !fetchDone) return;
     if (data?.insight?.ai_generated_at) return;
@@ -111,7 +111,7 @@ export function WaitingPageClient({
     let tries = 0;
     const id = setInterval(async () => {
       tries += 1;
-      if (tries > 8) {
+      if (tries > 24) {
         clearInterval(id);
         return;
       }
@@ -122,7 +122,7 @@ export function WaitingPageClient({
         setData(json);
         clearInterval(id);
       }
-    }, 2500);
+    }, 3000);
     return () => clearInterval(id);
   }, [isNewSubmission, fetchDone, data?.insight?.ai_generated_at, token]);
 

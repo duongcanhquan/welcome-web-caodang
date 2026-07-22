@@ -61,7 +61,7 @@ export function ViewerTreeView({
 
   return (
     <div className="relative h-dvh max-h-dvh w-full overflow-hidden">
-      {/* Cây full viewport — UI phủ lên; camera tự contain (desktop) / cover (mobile) */}
+      {/* Cây full viewport — UI phủ lên; camera contain để đủ tán hai bên */}
       <TreeCanvas
         layout={layout}
         mode="view"

@@ -56,8 +56,7 @@ export function TreeCanvas({
     const vh = rect.height;
     if (vw < 8 || vh < 8) return;
 
-    // Desktop landscape (+ present=1 máy chiếu): contain — full cây.
-    // Mobile / portrait: cover — full màn, ưu tiên tán.
+    // Contain mọi kích thước — đủ tán hai bên trên điện thoại; nền trời phủ full màn.
     const { scale: fitScale, panX, panY } = computeTreeCamera(vw, vh, W, H);
 
     cameraRef.current = { scale: fitScale, panX, panY };

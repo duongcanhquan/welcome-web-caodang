@@ -46,7 +46,7 @@ async function loadSnapshot(
       leavesMax: settings?.leaves_max ?? 1500,
       blossomEvery: settings?.blossom_every ?? 50,
       maxFileMb: Number(settings?.max_file_mb ?? 5),
-      rateLimitPerIp: settings?.rate_limit_per_ip ?? 3,
+      rateLimitPerIp: settings?.rate_limit_per_ip ?? 500,
       rootsText: settings?.roots_text ?? "",
       totalSubmissions: countRes.count ?? 0,
       aiEnabled: Boolean(secrets?.ai_enabled),
@@ -64,7 +64,7 @@ async function loadSnapshot(
       leavesMax: 1500,
       blossomEvery: 50,
       maxFileMb: 5,
-      rateLimitPerIp: 3,
+      rateLimitPerIp: 500,
       rootsText: "",
       totalSubmissions: 0,
     };

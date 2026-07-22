@@ -80,6 +80,9 @@ async function checkRateLimit(
   ipHash: string,
   limit: number
 ): Promise<boolean> {
+  // 0 hoặc âm = tắt giới hạn IP (phù hợp WiFi trường đông người chung NAT)
+  if (limit <= 0) return true;
+
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
   const { count } = await admin
@@ -164,10 +167,14 @@ export async function handleSubmission(
     throw new Error(`Ảnh quá lớn. Tối đa ${settings?.max_file_mb ?? 5}MB.`);
   }
 
-  const rateLimit = settings?.rate_limit_per_ip ?? 3;
-  const allowed = await checkRateLimit(admin, event.id, ipHash, rateLimit);
+  // Mặc định cao: nhiều SV chung WiFi trường = chung IP (NAT)
+  const rateLimit = Number(settings?.rate_limit_per_ip);
+  const effectiveLimit = Number.isFinite(rateLimit) ? rateLimit : 500;
+  const allowed = await checkRateLimit(admin, event.id, ipHash, effectiveLimit);
   if (!allowed) {
-    throw new Error("Bạn đã gửi quá số lần cho phép. Thử lại sau 24 giờ nhé.");
+    throw new Error(
+      "Mạng này đã gửi khá nhiều bài (chung WiFi). Thử 4G/5G cá nhân hoặc báo BTC nhé."
+    );
   }
 
   // Slot + đọc ảnh song song sau khi đã qua rate limit

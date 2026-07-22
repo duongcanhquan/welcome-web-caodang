@@ -1,6 +1,6 @@
 /**
- * Điểm gắn ảnh trên tán + thân — giữ khoảng cách, rải xuống thân.
- * FOLIAGE_CLUSTERS = vùng vẽ SVG tán; PHOTO_CLUSTERS = tán + thân để gắn ảnh.
+ * Điểm gắn ảnh — phân bố đều trên tán rộng + thân, khoảng cách rõ để dễ bấm.
+ * FOLIAGE_CLUSTERS chỉ dùng vẽ SVG tán.
  */
 
 import type { LeafSlot } from "./types";
@@ -31,37 +31,28 @@ const FOLIAGE_CLUSTERS: Cluster[] = [
   { cx: 0.5, cy: 0.32, rx: 0.07, ry: 0.055, weight: 0.7 },
 ];
 
-/** Nhánh / thân thấp hơn — chỉ gắn ảnh, không vẽ tán SVG */
-const TRUNK_PHOTO_CLUSTERS: Cluster[] = [
-  { cx: 0.38, cy: 0.5, rx: 0.08, ry: 0.055, weight: 0.75 },
-  { cx: 0.5, cy: 0.48, rx: 0.07, ry: 0.05, weight: 0.7 },
-  { cx: 0.62, cy: 0.5, rx: 0.08, ry: 0.055, weight: 0.75 },
-  { cx: 0.42, cy: 0.58, rx: 0.07, ry: 0.05, weight: 0.65 },
-  { cx: 0.58, cy: 0.58, rx: 0.07, ry: 0.05, weight: 0.65 },
-  { cx: 0.5, cy: 0.62, rx: 0.06, ry: 0.045, weight: 0.55 },
-  { cx: 0.46, cy: 0.68, rx: 0.05, ry: 0.04, weight: 0.4 },
-  { cx: 0.54, cy: 0.68, rx: 0.05, ry: 0.04, weight: 0.4 },
-];
+const Y_MIN = 0.05;
+const Y_MAX = 0.72;
+const X_MIN = 0.02;
+const X_MAX = 0.98;
 
-const PHOTO_CLUSTERS: Cluster[] = [...FOLIAGE_CLUSTERS, ...TRUNK_PHOTO_CLUSTERS];
-
-const Y_MIN = 0.06;
-const Y_MAX = 0.7;
-const X_MIN = 0.04;
-const X_MAX = 0.96;
-
+/** Mục tiêu khoảng cách — càng đông càng nhỏ dần nhưng vẫn có khe */
 export function minDistForCount(count: number): number {
-  if (count <= 40) return 0.055;
-  if (count <= 100) return 0.045;
-  if (count <= 250) return 0.035;
-  if (count <= 500) return 0.028;
-  return 0.022;
+  if (count <= 40) return 0.08;
+  if (count <= 80) return 0.068;
+  if (count <= 150) return 0.052;
+  if (count <= 300) return 0.042;
+  if (count <= 500) return 0.034;
+  return 0.028;
 }
 
+const ABSOLUTE_FLOOR = 0.025;
+
 function seededRandom(seed: number): () => number {
-  let s = seed;
+  let s = Math.floor(Math.abs(seed)) % 2147483647;
+  if (s === 0) s = 1;
   return () => {
-    s = (s * 16807 + 0) % 2147483647;
+    s = (s * 16807) % 2147483647;
     return (s - 1) / 2147483646;
   };
 }
@@ -79,25 +70,38 @@ function inEllipse(
   return dx * dx + dy * dy <= 1;
 }
 
-function makeSlot(x: number, y: number, rand: () => number, count: number): LeafSlot {
-  const distFromCenter = Math.hypot(x - 0.5, y - 0.28);
-  const density =
-    count <= 80 ? 1 : Math.max(0.72, Math.sqrt(80 / count));
+/** Silhouette rộng gần full tán + thân */
+function inTreeSilhouette(x: number, y: number): boolean {
+  if (x < X_MIN || x > X_MAX || y < Y_MIN || y > Y_MAX) return false;
+  if (inEllipse(x, y, 0.5, 0.28, 0.49, 0.3)) return true;
+  if (inEllipse(x, y, 0.5, 0.48, 0.36, 0.16)) return true;
+  if (inEllipse(x, y, 0.5, 0.6, 0.18, 0.12)) return true;
+  if (inEllipse(x, y, 0.5, 0.68, 0.11, 0.07)) return true;
+  return false;
+}
+
+function makeSlot(
+  x: number,
+  y: number,
+  rand: () => number,
+  count: number
+): LeafSlot {
+  const distFromCenter = Math.hypot(x - 0.5, y - 0.3);
+  const density = count <= 60 ? 1 : Math.max(0.52, Math.sqrt(50 / count));
   return {
     x,
     y,
-    rotation: (rand() - 0.5) * 16,
-    scale: (0.95 + rand() * 0.18 - distFromCenter * 0.12) * density,
+    rotation: (rand() - 0.5) * 14,
+    scale: (0.86 + rand() * 0.12 - distFromCenter * 0.08) * density,
   };
 }
 
-/** Lưới không gian — kiểm tra minDist O(1) trung bình */
 class DistGrid {
   private readonly cell: number;
   private readonly map = new Map<string, { x: number; y: number }[]>();
 
   constructor(minDist: number) {
-    this.cell = Math.max(minDist, 0.01);
+    this.cell = Math.max(minDist, 0.008);
   }
 
   private key(x: number, y: number): string {
@@ -127,80 +131,146 @@ class DistGrid {
   }
 }
 
-function tryPlace(
-  cluster: Cluster,
-  rand: () => number,
-  grid: DistGrid,
-  minDist: number,
+function buildCandidates(spacing: number, seed: number, extra: number) {
+  const rand = seededRandom(seed);
+  const dx = spacing;
+  const dy = spacing * 0.866;
+  const out: { x: number; y: number }[] = [];
+  let row = 0;
+
+  for (let y = Y_MIN; y <= Y_MAX + 1e-9; y += dy, row++) {
+    const xOff = (row % 2) * (dx * 0.5);
+    for (let x = X_MIN + xOff; x <= X_MAX + 1e-9; x += dx) {
+      const jx = x + (rand() - 0.5) * dx * 0.1;
+      const jy = y + (rand() - 0.5) * dy * 0.1;
+      if (inTreeSilhouette(jx, jy)) out.push({ x: jx, y: jy });
+    }
+  }
+
+  for (let i = 0; i < extra; i++) {
+    const x = X_MIN + rand() * (X_MAX - X_MIN);
+    const y = Y_MIN + rand() * (Y_MAX - Y_MIN);
+    if (inTreeSilhouette(x, y)) out.push({ x, y });
+  }
+  return out;
+}
+
+function pickWithMinDist(
+  candidates: { x: number; y: number }[],
   count: number,
-  slots: LeafSlot[]
-): boolean {
-  const angle = rand() * Math.PI * 2;
-  const r = Math.sqrt(rand());
-  const x = cluster.cx + Math.cos(angle) * r * cluster.rx;
-  const y = cluster.cy + Math.sin(angle) * r * cluster.ry;
+  minDist: number,
+  seed: number
+): { x: number; y: number }[] {
+  const rand = seededRandom(seed);
+  const arr = candidates.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const tmp = arr[i]!;
+    arr[i] = arr[j]!;
+    arr[j] = tmp;
+  }
 
-  if (!inEllipse(x, y, cluster.cx, cluster.cy, cluster.rx, cluster.ry))
-    return false;
-  if (x < X_MIN || x > X_MAX || y < Y_MIN || y > Y_MAX) return false;
-  if (grid.tooClose(x, y, minDist)) return false;
-
-  slots.push(makeSlot(x, y, rand, count));
-  grid.add(x, y);
-  return true;
+  const grid = new DistGrid(minDist);
+  const picked: { x: number; y: number }[] = [];
+  for (const p of arr) {
+    if (!p) continue;
+    if (picked.length >= count) break;
+    if (grid.tooClose(p.x, p.y, minDist)) continue;
+    grid.add(p.x, p.y);
+    picked.push(p);
+  }
+  return picked;
 }
 
 /**
- * Sinh slot ảnh trên tán + thân — luôn giữ khoảng cách tối thiểu.
+ * Sinh đúng `count` slot, ưu tiên khoảng cách lớn, phân bố đều trên tán rộng.
  */
 export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
   if (count <= 0) return [];
 
   const rand = seededRandom(seed);
-  const minDist = minDistForCount(count);
-  const grid = new DistGrid(minDist);
-  const slots: LeafSlot[] = [];
-  const totalWeight = PHOTO_CLUSTERS.reduce((s, c) => s + c.weight, 0);
+  let minDist = minDistForCount(count);
+  let best: { x: number; y: number }[] = [];
 
-  for (const cluster of PHOTO_CLUSTERS) {
-    const n = Math.max(
-      1,
-      Math.round((count * cluster.weight) / totalWeight)
+  for (let attempt = 0; attempt < 22; attempt++) {
+    const candidates = buildCandidates(
+      Math.max(ABSOLUTE_FLOOR * 0.9, minDist * 0.85),
+      seed + attempt * 17,
+      count * 10
     );
-    let placed = 0;
-    let attempts = 0;
-    const maxAttempts = n * 40;
+    const picked = pickWithMinDist(
+      candidates,
+      count,
+      minDist,
+      seed + attempt * 41
+    );
+    if (picked.length >= count) {
+      best = picked.slice(0, count);
+      break;
+    }
+    if (picked.length > best.length) best = picked;
+    minDist = Math.max(ABSOLUTE_FLOOR, minDist * 0.9);
+  }
 
-    while (placed < n && slots.length < count && attempts < maxAttempts) {
-      attempts++;
-      if (tryPlace(cluster, rand, grid, minDist, count, slots)) placed++;
+  if (best.length < count) {
+    const candidates = buildCandidates(
+      ABSOLUTE_FLOOR * 0.8,
+      seed + 777,
+      count * 20
+    );
+    best = pickWithMinDist(candidates, count, ABSOLUTE_FLOOR, seed + 888);
+  }
+
+  const slots: LeafSlot[] = best.slice(0, count).map((p) =>
+    makeSlot(p.x, p.y, rand, count)
+  );
+
+  // Bảo đảm đủ count — xoắn ốc rộng vẫn giữ ABSOLUTE_FLOOR
+  const grid = new DistGrid(ABSOLUTE_FLOOR);
+  for (const s of slots) grid.add(s.x, s.y);
+  let n = 0;
+  while (slots.length < count && n < count * 200) {
+    n++;
+    const t = n * 0.45;
+    const ring = 0.04 + (n % 90) * 0.0055;
+    const x = Math.min(X_MAX, Math.max(X_MIN, 0.5 + Math.cos(t) * ring * 1.85));
+    const y = Math.min(Y_MAX, Math.max(Y_MIN, 0.08 + (n % 80) * 0.0078));
+    if (!inTreeSilhouette(x, y)) continue;
+    if (grid.tooClose(x, y, ABSOLUTE_FLOOR)) continue;
+    grid.add(x, y);
+    slots.push(makeSlot(x, y, rand, count));
+  }
+
+  // Nới sàn dần cho tới khi đủ chỗ (ưu tiên vẫn có khe; không bỏ sót slot)
+  let soft = ABSOLUTE_FLOOR;
+  while (slots.length < count && soft >= 0.012) {
+    soft *= 0.88;
+    for (let y = Y_MIN; y <= Y_MAX + 1e-9 && slots.length < count; y += soft) {
+      for (
+        let x = X_MIN;
+        x <= X_MAX + 1e-9 && slots.length < count;
+        x += soft
+      ) {
+        if (!inTreeSilhouette(x, y)) continue;
+        if (grid.tooClose(x, y, soft)) continue;
+        grid.add(x, y);
+        slots.push(makeSlot(x, y, rand, count));
+      }
     }
   }
 
-  // Lấp đủ count: chỉ nới nhẹ minDist (không để ảnh đè mạnh)
-  const relaxFloor = Math.max(0.02, minDist * 0.85);
-  let relax = minDist;
-  let guard = 0;
-  while (slots.length < count && guard < count * 120) {
-    guard++;
-    if (guard % 150 === 0) relax = Math.max(relaxFloor, relax * 0.95);
-    const cluster = PHOTO_CLUSTERS[guard % PHOTO_CLUSTERS.length];
-    tryPlace(cluster, rand, grid, relax, count, slots);
-  }
-
-  // Fallback cuối: spiral quanh thân nếu vẫn thiếu (hiếm)
-  let spiral = 0;
-  while (slots.length < count && spiral < count * 40) {
-    spiral++;
-    const t = spiral * 0.37;
-    const ring = 0.035 + (spiral % 50) * 0.005;
-    const x = 0.5 + Math.cos(t) * ring;
-    const y = 0.18 + (spiral % 60) * 0.0085;
-    const cx = Math.min(X_MAX, Math.max(X_MIN, x));
-    const cy = Math.min(Y_MAX, Math.max(Y_MIN, y));
-    if (grid.tooClose(cx, cy, relaxFloor)) continue;
-    slots.push(makeSlot(cx, cy, rand, count));
-    grid.add(cx, cy);
+  // Cùng lắm: xếp zigzag trong khung tán (vẫn tránh đè hoàn toàn nếu được)
+  let i = 0;
+  while (slots.length < count) {
+    const col = i % 24;
+    const row = Math.floor(i / 24);
+    const x = X_MIN + ((col + 0.5) / 24) * (X_MAX - X_MIN);
+    const y = Y_MIN + ((row + 0.5) / 36) * (Y_MAX - Y_MIN);
+    i++;
+    if (i > count * 40) break;
+    if (grid.tooClose(x, y, 0.01)) continue;
+    grid.add(x, y);
+    slots.push(makeSlot(x, y, rand, count));
   }
 
   return slots.slice(0, count).sort((a, b) => a.y - b.y);

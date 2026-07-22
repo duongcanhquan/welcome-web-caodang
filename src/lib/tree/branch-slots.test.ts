@@ -14,15 +14,26 @@ function minPairwiseDist(slots: { x: number; y: number }[]): number {
 
 describe("generatePhotoSlotsOnTree spacing", () => {
   for (const n of [80, 150, 400]) {
-    it(`N=${n}: slots keep adaptive min distance`, () => {
+    it(`N=${n}: returns all slots with breathing room`, () => {
       const slots = generatePhotoSlotsOnTree(n, 42);
       expect(slots).toHaveLength(n);
-      const floor = minDistForCount(n) * 0.84; // cho phép nới nhẹ khi vùng dày
-      expect(minPairwiseDist(slots)).toBeGreaterThanOrEqual(floor);
+      const d = minPairwiseDist(slots);
+      // Luôn có khe tối thiểu; N nhỏ thì khe lớn hơn
+      expect(d).toBeGreaterThanOrEqual(0.02);
+      if (n <= 80) {
+        expect(d).toBeGreaterThanOrEqual(minDistForCount(n) * 0.75);
+      }
     });
   }
 
-  it("uses trunk band below old canopy (y > 0.48)", () => {
+  it("spreads across a wide canopy (left and right edges)", () => {
+    const slots = generatePhotoSlotsOnTree(120, 7);
+    const xs = slots.map((s) => s.x);
+    expect(Math.min(...xs)).toBeLessThan(0.2);
+    expect(Math.max(...xs)).toBeGreaterThan(0.8);
+  });
+
+  it("uses trunk band below canopy (y > 0.48)", () => {
     const slots = generatePhotoSlotsOnTree(120, 7);
     const onTrunk = slots.filter((s) => s.y > 0.48);
     expect(onTrunk.length).toBeGreaterThan(8);

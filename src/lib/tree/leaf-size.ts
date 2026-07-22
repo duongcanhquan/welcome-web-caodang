@@ -1,21 +1,21 @@
 /**
- * Kích thước ảnh lá theo mật độ — đông thì nhỏ lại để ít đè, vẫn bấm được.
+ * Kích thước ảnh lá theo mật độ — đông thì nhỏ rõ để không đè nhau.
  */
 export function computeBaseLeafSize(
   photoCount: number,
   opts: { mini?: boolean; presentation?: boolean } = {}
 ): number {
-  if (opts.mini) return 28;
+  if (opts.mini) return 22;
   const n = Math.max(1, photoCount);
-  const density = Math.sqrt(80 / Math.max(n, 80));
-  const base = 52 * density;
-  const clamped = Math.min(52, Math.max(28, base));
-  return Math.round(opts.presentation ? clamped * 1.08 : clamped);
+  const density = Math.sqrt(45 / Math.max(n, 45));
+  const base = 44 * density;
+  const clamped = Math.min(44, Math.max(20, base));
+  return Math.round(opts.presentation ? clamped * 1.06 : clamped);
 }
 
-/** Hệ số hit-test — ảnh nhỏ cần vùng chạm rộng hơn một chút */
+/** Hệ số hit-test — ảnh nhỏ cần vùng chạm rộng hơn */
 export function leafHitRadiusMultiplier(baseLeafSize: number): number {
-  if (baseLeafSize <= 32) return 1.75;
-  if (baseLeafSize <= 40) return 1.6;
-  return 1.45;
+  if (baseLeafSize <= 26) return 1.9;
+  if (baseLeafSize <= 34) return 1.7;
+  return 1.5;
 }

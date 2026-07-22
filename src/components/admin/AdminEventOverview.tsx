@@ -63,8 +63,13 @@ export function AdminEventOverview({
       ? [
           {
             label: "Xem điều kỳ diệu",
+            href: `/v/${settings.slug}`,
+            desc: "Link gửi SV — có ô tìm tên dưới gốc cây",
+          },
+          {
+            label: "Trình chiếu full",
             href: `/v/${settings.slug}?present=1`,
-            desc: "Cây đã chốt — trình chiếu",
+            desc: "Máy chiếu — ẩn UI tìm kiếm",
           },
         ]
       : []),

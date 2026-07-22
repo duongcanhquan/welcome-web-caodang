@@ -121,11 +121,18 @@ export function AdminLockTree({ eventId, eventSlug }: AdminLockTreeProps) {
           Live (ảnh trực tiếp)
         </Link>
         <Link
+          href={`/v/${eventSlug}`}
+          target="_blank"
+          className="inline-flex items-center rounded-button border border-peach/30 px-4 py-2 text-base font-semibold"
+        >
+          Link SV xem cây
+        </Link>
+        <Link
           href={`/v/${eventSlug}?present=1`}
           target="_blank"
           className="inline-flex items-center rounded-button border border-peach/30 px-4 py-2 text-base font-semibold"
         >
-          Xem trước cây
+          Trình chiếu
         </Link>
       </div>
     </motion.section>

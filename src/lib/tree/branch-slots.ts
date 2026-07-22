@@ -1,13 +1,10 @@
 /**
- * Điểm gắn ảnh — to như cũ, sát được nhưng không đè (minDist ≈ đường kính ảnh).
- * FOLIAGE_CLUSTERS chỉ dùng vẽ SVG tán.
+ * Điểm gắn ảnh — size cố định, rải đều khắp tán + cành + thân, không chồng.
+ * Khoảng cách tính theo pixel (canvas 900×1100) để không đè thật trên màn hình.
  */
 
 import type { LeafSlot } from "./types";
-import {
-  minDistForCount as minDistForCountFromSize,
-  minDistForLeafVisual,
-} from "./leaf-size";
+import { computeBaseLeafSize, minDistForCount as minDistNorm } from "./leaf-size";
 
 type Cluster = {
   cx: number;
@@ -35,15 +32,17 @@ const FOLIAGE_CLUSTERS: Cluster[] = [
   { cx: 0.5, cy: 0.32, rx: 0.07, ry: 0.055, weight: 0.7 },
 ];
 
-const Y_MIN = 0.05;
-const Y_MAX = 0.72;
-const X_MIN = 0.02;
-const X_MAX = 0.98;
-const BASE_PX = 52;
+const CANVAS_W = 900;
+const CANVAS_H = 1100;
 
-/** Re-export — khoảng cách ≈ đường kính ảnh (sátt, không đè) */
+const Y_MIN = 0.06;
+const Y_MAX = 0.7;
+const X_MIN = 0.04;
+const X_MAX = 0.96;
+
+/** Re-export cho test */
 export function minDistForCount(count: number): number {
-  return minDistForCountFromSize(count);
+  return minDistNorm(count);
 }
 
 function seededRandom(seed: number): () => number {
@@ -68,171 +67,151 @@ function inEllipse(
   return dx * dx + dy * dy <= 1;
 }
 
+/**
+ * Silhouette rộng: tán full + vai cành + thân giữa.
+ * Ưu tiên phủ chỗ trống mà ảnh đang bỏ sót.
+ */
 function inTreeSilhouette(x: number, y: number): boolean {
   if (x < X_MIN || x > X_MAX || y < Y_MIN || y > Y_MAX) return false;
-  if (inEllipse(x, y, 0.5, 0.28, 0.49, 0.3)) return true;
-  if (inEllipse(x, y, 0.5, 0.48, 0.36, 0.16)) return true;
-  if (inEllipse(x, y, 0.5, 0.6, 0.18, 0.12)) return true;
-  if (inEllipse(x, y, 0.5, 0.68, 0.11, 0.07)) return true;
+  // Tán rộng
+  if (inEllipse(x, y, 0.5, 0.26, 0.46, 0.26)) return true;
+  // Vai / cành ngang
+  if (inEllipse(x, y, 0.28, 0.38, 0.2, 0.12)) return true;
+  if (inEllipse(x, y, 0.72, 0.38, 0.2, 0.12)) return true;
+  if (inEllipse(x, y, 0.5, 0.4, 0.34, 0.12)) return true;
+  // Thân + cành thấp
+  if (inEllipse(x, y, 0.5, 0.52, 0.22, 0.1)) return true;
+  if (inEllipse(x, y, 0.42, 0.58, 0.12, 0.08)) return true;
+  if (inEllipse(x, y, 0.58, 0.58, 0.12, 0.08)) return true;
+  if (inEllipse(x, y, 0.5, 0.64, 0.1, 0.07)) return true;
   return false;
 }
 
-/** scale sao cho đường kính vẽ ≤ packMinDist → không đè */
+/** Khoảng cách pixel giữa hai tâm */
+function pixelDist(
+  a: { x: number; y: number },
+  b: { x: number; y: number }
+): number {
+  return Math.hypot((a.x - b.x) * CANVAS_W, (a.y - b.y) * CANVAS_H);
+}
+
 function makeSlot(
   x: number,
   y: number,
-  rand: () => number,
-  packMinDist: number
+  rand: () => number
 ): LeafSlot {
-  const distFromCenter = Math.hypot(x - 0.5, y - 0.3);
-  const natural = 0.92 + rand() * 0.12 - distFromCenter * 0.06;
-  const maxScale = (packMinDist * 900) / BASE_PX * 0.995;
   return {
     x,
     y,
-    rotation: (rand() - 0.5) * 14,
-    scale: Math.min(Math.max(0.55, natural), maxScale),
+    rotation: (rand() - 0.5) * 12,
+    // Size cố định — TreeCanvas dùng baseLeafSize × scale
+    scale: 0.96 + rand() * 0.08,
   };
 }
 
-class DistGrid {
-  private readonly cell: number;
-  private readonly map = new Map<string, { x: number; y: number }[]>();
-
-  constructor(minDist: number) {
-    this.cell = Math.max(minDist, 0.008);
-  }
-
-  private key(x: number, y: number): string {
-    return `${Math.floor(x / this.cell)},${Math.floor(y / this.cell)}`;
-  }
-
-  tooClose(x: number, y: number, minDist: number): boolean {
-    const cx = Math.floor(x / this.cell);
-    const cy = Math.floor(y / this.cell);
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        const bucket = this.map.get(`${cx + dx},${cy + dy}`);
-        if (!bucket) continue;
-        for (const p of bucket) {
-          if (Math.hypot(p.x - x, p.y - y) < minDist) return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  add(x: number, y: number) {
-    const k = this.key(x, y);
-    const bucket = this.map.get(k);
-    if (bucket) bucket.push({ x, y });
-    else this.map.set(k, [{ x, y }]);
-  }
-}
-
-function buildCandidates(spacing: number, seed: number, extra: number) {
-  const rand = seededRandom(seed);
-  const dx = spacing;
-  const dy = spacing * 0.866;
+/**
+ * Lưới lục giác theo pixel: bước ≈ đường kính ảnh × gap.
+ * Lấy đều trên toàn silhouette (không dồn đỉnh tán).
+ */
+function buildEvenLattice(sizePx: number, gap: number): { x: number; y: number }[] {
+  const stepX = (sizePx / CANVAS_W) * gap;
+  const stepY = (sizePx / CANVAS_H) * gap * 0.866;
   const out: { x: number; y: number }[] = [];
   let row = 0;
 
-  for (let y = Y_MIN; y <= Y_MAX + 1e-9; y += dy, row++) {
-    const xOff = (row % 2) * (dx * 0.5);
-    for (let x = X_MIN + xOff; x <= X_MAX + 1e-9; x += dx) {
-      const jx = x + (rand() - 0.5) * dx * 0.08;
-      const jy = y + (rand() - 0.5) * dy * 0.08;
-      if (inTreeSilhouette(jx, jy)) out.push({ x: jx, y: jy });
+  for (let y = Y_MIN; y <= Y_MAX + 1e-9; y += stepY, row++) {
+    const xOff = (row % 2) * (stepX * 0.5);
+    for (let x = X_MIN + xOff; x <= X_MAX + 1e-9; x += stepX) {
+      if (inTreeSilhouette(x, y)) out.push({ x, y });
     }
-  }
-
-  for (let i = 0; i < extra; i++) {
-    const x = X_MIN + rand() * (X_MAX - X_MIN);
-    const y = Y_MIN + rand() * (Y_MAX - Y_MIN);
-    if (inTreeSilhouette(x, y)) out.push({ x, y });
   }
   return out;
 }
 
-function pickWithMinDist(
-  candidates: { x: number; y: number }[],
-  count: number,
-  minDist: number,
-  seed: number
+/** Chọn đều count điểm từ lattice đã cách nhau */
+function pickEvenly(
+  lattice: { x: number; y: number }[],
+  count: number
 ): { x: number; y: number }[] {
-  const rand = seededRandom(seed);
-  const arr = candidates.slice();
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    const tmp = arr[i]!;
-    arr[i] = arr[j]!;
-    arr[j] = tmp;
-  }
-
-  const grid = new DistGrid(minDist);
+  if (lattice.length <= count) return lattice.slice();
+  // Duyệt theo hàng (y rồi x) rồi lấy cách đều → phủ cả thân/cành/tán
+  const sorted = [...lattice].sort((a, b) =>
+    a.y === b.y ? a.x - b.x : a.y - b.y
+  );
   const picked: { x: number; y: number }[] = [];
-  for (const p of arr) {
-    if (!p) continue;
-    if (picked.length >= count) break;
-    if (grid.tooClose(p.x, p.y, minDist)) continue;
-    grid.add(p.x, p.y);
-    picked.push(p);
+  const step = sorted.length / count;
+  const used = new Set<number>();
+  for (let i = 0; i < count; i++) {
+    let idx = Math.min(sorted.length - 1, Math.floor(i * step + step * 0.5));
+    // Tránh trùng index
+    while (used.has(idx) && idx < sorted.length - 1) idx++;
+    while (used.has(idx) && idx > 0) idx--;
+    used.add(idx);
+    picked.push(sorted[idx]!);
   }
   return picked;
 }
 
-function packAtDistance(
-  count: number,
-  minDist: number,
+/**
+ * Greedy bổ sung nếu lattice thiếu — vẫn tôn trọng khoảng cách pixel.
+ */
+function fillRemaining(
+  current: { x: number; y: number }[],
+  need: number,
+  minPx: number,
   seed: number
 ): { x: number; y: number }[] {
-  const candidates = buildCandidates(minDist * 0.9, seed, count * 12);
-  return pickWithMinDist(candidates, count, minDist, seed + 3);
+  if (current.length >= need) return current;
+  const rand = seededRandom(seed);
+  const out = current.slice();
+
+  for (let attempt = 0; attempt < need * 80 && out.length < need; attempt++) {
+    const x = X_MIN + rand() * (X_MAX - X_MIN);
+    const y = Y_MIN + rand() * (Y_MAX - Y_MIN);
+    if (!inTreeSilhouette(x, y)) continue;
+    const p = { x, y };
+    if (out.some((o) => pixelDist(o, p) < minPx)) continue;
+    out.push(p);
+  }
+  return out;
 }
 
 /**
- * Sinh slot ảnh to, phân bố đều — tâm cách ≥ đường kính ảnh (không đè).
- * Nếu không đủ chỗ ở size lớn, hạ nhẹ khoảng cách (và scale) tới sàn ~44px.
- * Có thể trả về ít hơn `count` nếu tán đã đầy — phần dư thành lá rụng ở build-layout.
+ * Sinh slot: size giữ nguyên, rải đều, không chồng (theo pixel).
  */
 export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
   if (count <= 0) return [];
 
   const rand = seededRandom(seed);
-  const preferred = minDistForCount(count);
-  const floor = minDistForLeafVisual(44);
+  const sizePx = computeBaseLeafSize(count);
+  // gap 1.08 = sát nhưng không đè; hạ dần nếu thiếu chỗ
+  let gap = 1.08;
+  let points: { x: number; y: number }[] = [];
 
-  let minDist = preferred;
-  let bestPoints: { x: number; y: number }[] = [];
-  let bestDist = preferred;
-
-  for (let attempt = 0; attempt < 18; attempt++) {
-    const picked = packAtDistance(count, minDist, seed + attempt * 23);
-    if (picked.length >= count) {
-      bestPoints = picked.slice(0, count);
-      bestDist = minDist;
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const lattice = buildEvenLattice(sizePx, gap);
+    if (lattice.length >= count) {
+      points = pickEvenly(lattice, count);
       break;
     }
-    if (picked.length > bestPoints.length) {
-      bestPoints = picked;
-      bestDist = minDist;
-    }
-    const next = minDist * 0.93;
-    if (next < floor) {
-      // Gói tối đa ở sàn
-      const maxPack = packAtDistance(count * 2, floor, seed + 900);
-      if (maxPack.length > bestPoints.length) {
-        bestPoints = maxPack.slice(0, count);
-        bestDist = floor;
-      }
-      break;
-    }
-    minDist = next;
+    points = lattice;
+    gap = Math.max(1.0, gap * 0.96);
   }
 
-  return bestPoints
+  const minPx = sizePx * Math.max(1.0, gap * 0.98);
+  points = fillRemaining(points, count, minPx, seed + 11);
+
+  // Nếu vẫn thiếu: nới gap xuống 0.95 (hơi sát hơn, vẫn gần như không đè)
+  if (points.length < count) {
+    gap = 0.95;
+    const lattice = buildEvenLattice(sizePx, gap);
+    points = pickEvenly(lattice, Math.min(count, lattice.length));
+    points = fillRemaining(points, count, sizePx * 0.95, seed + 22);
+  }
+
+  return points
     .slice(0, count)
-    .map((p) => makeSlot(p.x, p.y, rand, bestDist))
+    .map((p) => makeSlot(p.x, p.y, rand))
     .sort((a, b) => a.y - b.y);
 }
 

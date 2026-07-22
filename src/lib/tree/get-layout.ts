@@ -157,28 +157,45 @@ export async function getLockedTreeLayout(slug: string): Promise<{
   );
 
   const mosaicRows = (mosaic.leaves as Array<Record<string, unknown>>) ?? [];
-  const realLeaves = mosaicRows
+  const realLeavesRaw = mosaicRows
     .map((l, i) => readMosaicLeaf(l, i, subMap))
-    .filter((l) => !l.filler && l.submissionId);
+    .filter((l) => !l.filler && l.submissionId)
+    .sort((a, b) => a.slotIndex - b.slotIndex);
 
-  const resolution = Number(mosaic.resolution) || Math.max(realLeaves.length, 40);
+  const resolution = Number(mosaic.resolution) || Math.max(realLeavesRaw.length, 40);
   const brandColor =
     (event.settings.trunkConfig.brandColor as string) ?? "#3DBE8B";
 
+  // Rải lại vị trí bằng packer hiện tại — giữ size, không chồng, phủ thân/cành
+  // (mosaic cũ thường dồn đỉnh tán; lock vẫn giữ đúng danh sách người)
+  const spreadSlots = generatePhotoSlotsOnTree(
+    Math.max(realLeavesRaw.length, resolution),
+    hashEventId(event.eventId)
+  );
+
+  const realLeaves = realLeavesRaw.map((leaf, i) => {
+    const slot = spreadSlots[i];
+    if (!slot) return leaf;
+    return {
+      ...leaf,
+      x: slot.x,
+      y: slot.y,
+      rotation: slot.rotation,
+      scale: slot.scale,
+    };
+  });
+
   let leaves: TreeLeaf[] = [...realLeaves];
 
-  // Slim mosaic: thêm filler vào slot trống (không đè lên lá đã chốt)
-  if (realLeaves.length < resolution) {
-    const slots = generatePhotoSlotsOnTree(
-      resolution,
-      hashEventId(event.eventId)
-    );
+  // Filler vào các slot còn lại (không đè ảnh thật)
+  if (realLeaves.length < spreadSlots.length) {
     const occupied = realLeaves.map((l) => ({ x: l.x, y: l.y }));
     let fillerIdx = 0;
-    for (let i = 0; i < slots.length; i++) {
-      const slot = slots[i];
+    for (let i = realLeaves.length; i < spreadSlots.length; i++) {
+      const slot = spreadSlots[i]!;
       const tooClose = occupied.some(
-        (o) => Math.hypot(o.x - slot.x, o.y - slot.y) < 0.04
+        (o) =>
+          Math.hypot((o.x - slot.x) * 900, (o.y - slot.y) * 1100) < 48
       );
       if (tooClose) continue;
       leaves.push({
@@ -188,7 +205,7 @@ export async function getLockedTreeLayout(slug: string): Promise<{
         x: slot.x,
         y: slot.y,
         rotation: slot.rotation,
-        scale: slot.scale * 0.85,
+        scale: slot.scale * 0.9,
         majorColor: brandColor,
         leafUrl: event.settings.fillerAssets[0] ?? null,
       });

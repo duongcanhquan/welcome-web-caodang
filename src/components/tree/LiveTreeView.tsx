@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import confetti from "canvas-confetti";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
+import { findLeafByName } from "@/lib/tree/find-leaf";
 import { TreeCanvas } from "./TreeCanvas";
 import { LeafDetailCard } from "./LeafDetailCard";
 import { EventCohortBadge } from "@/components/events/EventCohortBadge";
@@ -37,7 +38,26 @@ export function LiveTreeView({
   const [toast, setToast] = useState<string | null>(null);
   const [blossom, setBlossom] = useState(false);
   const [selectedLeaf, setSelectedLeaf] = useState<TreeLeaf | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [dobs, setDobs] = useState(dobMap);
+
+  const searchable = useMemo(
+    () => layout.leaves.filter((l) => l.submissionId && l.name && !l.filler),
+    [layout.leaves]
+  );
+
+  const findByName = useCallback(() => {
+    const match = findLeafByName(searchable, search);
+    if (!match) {
+      setToast("Không tìm thấy tên này");
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
+    setHighlightedId(match.id);
+    setTimeout(() => setSelectedLeaf(match), 400);
+    setTimeout(() => setHighlightedId(null), 3500);
+  }, [search, searchable]);
 
   const refreshLayout = useCallback(async () => {
     const res = await fetch(`/api/tree/${eventSlug}`);
@@ -87,7 +107,6 @@ export function LiveTreeView({
           }, 800);
 
           setTotalLeaves((prev) => {
-            // Chỉ tăng tạm; refreshLayout sẽ ghi đè số đúng
             const newTotal = prev + 1;
             if (newTotal % blossomEvery === 0) {
               setBlossom(true);
@@ -108,7 +127,6 @@ export function LiveTreeView({
             setTimeout(() => setToast(null), 4000);
             return newTotal;
           });
-          // Đồng bộ lại số lá từ server (tránh lệch realtime)
         }
       )
       .subscribe();
@@ -121,36 +139,55 @@ export function LiveTreeView({
 
   return (
     <div className="relative h-dvh max-h-dvh w-full overflow-hidden">
-      {/* Cây full màn hình — header phủ lên trên */}
       <TreeCanvas
         layout={layout}
         mode="live"
         presentation={fullscreen}
+        highlightedId={highlightedId}
         newLeafId={newLeafId}
         onLeafClick={setSelectedLeaf}
         className="absolute inset-0 h-full w-full"
       />
 
       {!fullscreen && (
-        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-3 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <div className="pointer-events-auto max-w-[70%] rounded-2xl bg-black/40 px-3 py-2 backdrop-blur-md">
-            <p className="font-display text-[11px] font-semibold uppercase tracking-widest text-honey">
-              Live · {totalLeaves} lá · Bấm ảnh xem info
-            </p>
-            <EventCohortBadge
-              batchLabel={batchLabel}
-              classLabel={classLabel}
-              name={eventName}
-              slug={eventSlug}
-              size="sm"
-            />
+        <header className="pointer-events-none absolute inset-x-0 top-0 z-30 px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-4">
+          <div className="flex items-start justify-between gap-2">
+            <div className="pointer-events-auto max-w-[min(100%,20rem)] rounded-2xl bg-black/40 px-3 py-2 backdrop-blur-md">
+              <p className="font-display text-[11px] font-semibold uppercase tracking-widest text-honey">
+                Live · {totalLeaves} lá · Bấm ảnh xem info
+              </p>
+              <EventCohortBadge
+                batchLabel={batchLabel}
+                classLabel={classLabel}
+                name={eventName}
+                slug={eventSlug}
+                size="sm"
+              />
+              <div className="mt-2 flex gap-1.5">
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && findByName()}
+                  placeholder="Tìm tên..."
+                  className="min-w-0 flex-1 rounded-xl border border-white/25 bg-white/15 px-2.5 py-1.5 text-xs text-white placeholder:text-white/55 focus:border-honey focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={findByName}
+                  className="shrink-0 rounded-xl bg-peach px-2.5 py-1.5 text-xs font-bold text-white"
+                >
+                  Tìm
+                </button>
+              </div>
+            </div>
+            <a
+              href={`/live/${eventSlug}?present=1`}
+              className="pointer-events-auto shrink-0 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-brand-navy shadow-md backdrop-blur-sm"
+            >
+              Full
+            </a>
           </div>
-          <a
-            href={`/live/${eventSlug}?present=1`}
-            className="pointer-events-auto shrink-0 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-brand-navy shadow-md backdrop-blur-sm"
-          >
-            Full
-          </a>
         </header>
       )}
 

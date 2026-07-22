@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
+import { computeTreeCamera } from "@/lib/tree/fit-camera";
 import { MagicalSkyBackground } from "@/components/motion/MagicalSkyBackground";
 import { MightyTreeArt } from "./MightyTreeArt";
 import { TreeLeafNode } from "./TreeLeafNode";
@@ -55,30 +56,14 @@ export function TreeCanvas({
     const vh = rect.height;
     if (vw < 8 || vh < 8) return;
 
-    const scaleW = vw / W;
-    const scaleH = vh / H;
-    const portrait = vh / vw >= 1.05;
-    const narrow = vw < 768;
-    // Cover trên mobile; thiên về giữ tán (ảnh) trong khung — không neo đáy quá mạnh
-    const useCover = portrait || narrow || presentation;
-    const fitScale = useCover
-      ? Math.max(scaleW, scaleH)
-      : Math.min(scaleW, scaleH);
-
-    const panX = (vw - W * fitScale) / 2;
-    // Cover: căn giữa theo chiều dọc một chút về phía tán (ảnh ở nửa trên)
-    let panY: number;
-    if (useCover) {
-      const overflow = H * fitScale - vh;
-      panY = overflow > 0 ? -overflow * 0.35 : (vh - H * fitScale) / 2;
-    } else {
-      panY = vh - H * fitScale;
-    }
+    // Desktop landscape (+ present=1 máy chiếu): contain — full cây.
+    // Mobile / portrait: cover — full màn, ưu tiên tán.
+    const { scale: fitScale, panX, panY } = computeTreeCamera(vw, vh, W, H);
 
     cameraRef.current = { scale: fitScale, panX, panY };
     setScale(fitScale);
     setPan({ x: panX, y: panY });
-  }, [W, H, mode, presentation]);
+  }, [W, H, mode]);
 
   useEffect(() => {
     fitToViewport();

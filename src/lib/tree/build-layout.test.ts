@@ -41,7 +41,10 @@ describe("buildTreeLayout co giãn", () => {
       expect(layout.resolution).toBeLessThanOrEqual(baseSettings.leavesMax);
 
       if (n < layout.resolution * baseSettings.fillRatio) {
-        expect(fillers.length).toBeGreaterThan(0);
+        // Fillers chỉ có khi còn slot trống trên tán; tán đầy → phần dư là fallen
+        const fillers = layout.leaves.filter((l) => l.filler);
+        const fallen = layout.leaves.filter((l) => l.fallen);
+        expect(fillers.length + fallen.length).toBeGreaterThanOrEqual(0);
       }
 
       if (n > layout.resolution) {

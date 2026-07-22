@@ -1,9 +1,13 @@
 /**
- * Điểm gắn ảnh — phân bố đều trên tán rộng + thân, khoảng cách rõ để dễ bấm.
+ * Điểm gắn ảnh — to như cũ, sát được nhưng không đè (minDist ≈ đường kính ảnh).
  * FOLIAGE_CLUSTERS chỉ dùng vẽ SVG tán.
  */
 
 import type { LeafSlot } from "./types";
+import {
+  minDistForCount as minDistForCountFromSize,
+  minDistForLeafVisual,
+} from "./leaf-size";
 
 type Cluster = {
   cx: number;
@@ -35,18 +39,12 @@ const Y_MIN = 0.05;
 const Y_MAX = 0.72;
 const X_MIN = 0.02;
 const X_MAX = 0.98;
+const BASE_PX = 52;
 
-/** Mục tiêu khoảng cách — càng đông càng nhỏ dần nhưng vẫn có khe */
+/** Re-export — khoảng cách ≈ đường kính ảnh (sátt, không đè) */
 export function minDistForCount(count: number): number {
-  if (count <= 40) return 0.08;
-  if (count <= 80) return 0.068;
-  if (count <= 150) return 0.052;
-  if (count <= 300) return 0.042;
-  if (count <= 500) return 0.034;
-  return 0.028;
+  return minDistForCountFromSize(count);
 }
-
-const ABSOLUTE_FLOOR = 0.025;
 
 function seededRandom(seed: number): () => number {
   let s = Math.floor(Math.abs(seed)) % 2147483647;
@@ -70,7 +68,6 @@ function inEllipse(
   return dx * dx + dy * dy <= 1;
 }
 
-/** Silhouette rộng gần full tán + thân */
 function inTreeSilhouette(x: number, y: number): boolean {
   if (x < X_MIN || x > X_MAX || y < Y_MIN || y > Y_MAX) return false;
   if (inEllipse(x, y, 0.5, 0.28, 0.49, 0.3)) return true;
@@ -80,19 +77,21 @@ function inTreeSilhouette(x: number, y: number): boolean {
   return false;
 }
 
+/** scale sao cho đường kính vẽ ≤ packMinDist → không đè */
 function makeSlot(
   x: number,
   y: number,
   rand: () => number,
-  count: number
+  packMinDist: number
 ): LeafSlot {
   const distFromCenter = Math.hypot(x - 0.5, y - 0.3);
-  const density = count <= 60 ? 1 : Math.max(0.52, Math.sqrt(50 / count));
+  const natural = 0.92 + rand() * 0.12 - distFromCenter * 0.06;
+  const maxScale = (packMinDist * 900) / BASE_PX * 0.995;
   return {
     x,
     y,
     rotation: (rand() - 0.5) * 14,
-    scale: (0.86 + rand() * 0.12 - distFromCenter * 0.08) * density,
+    scale: Math.min(Math.max(0.55, natural), maxScale),
   };
 }
 
@@ -141,8 +140,8 @@ function buildCandidates(spacing: number, seed: number, extra: number) {
   for (let y = Y_MIN; y <= Y_MAX + 1e-9; y += dy, row++) {
     const xOff = (row % 2) * (dx * 0.5);
     for (let x = X_MIN + xOff; x <= X_MAX + 1e-9; x += dx) {
-      const jx = x + (rand() - 0.5) * dx * 0.1;
-      const jy = y + (rand() - 0.5) * dy * 0.1;
+      const jx = x + (rand() - 0.5) * dx * 0.08;
+      const jy = y + (rand() - 0.5) * dy * 0.08;
       if (inTreeSilhouette(jx, jy)) out.push({ x: jx, y: jy });
     }
   }
@@ -182,98 +181,59 @@ function pickWithMinDist(
   return picked;
 }
 
+function packAtDistance(
+  count: number,
+  minDist: number,
+  seed: number
+): { x: number; y: number }[] {
+  const candidates = buildCandidates(minDist * 0.9, seed, count * 12);
+  return pickWithMinDist(candidates, count, minDist, seed + 3);
+}
+
 /**
- * Sinh đúng `count` slot, ưu tiên khoảng cách lớn, phân bố đều trên tán rộng.
+ * Sinh slot ảnh to, phân bố đều — tâm cách ≥ đường kính ảnh (không đè).
+ * Nếu không đủ chỗ ở size lớn, hạ nhẹ khoảng cách (và scale) tới sàn ~44px.
+ * Có thể trả về ít hơn `count` nếu tán đã đầy — phần dư thành lá rụng ở build-layout.
  */
 export function generatePhotoSlotsOnTree(count: number, seed = 42): LeafSlot[] {
   if (count <= 0) return [];
 
   const rand = seededRandom(seed);
-  let minDist = minDistForCount(count);
-  let best: { x: number; y: number }[] = [];
+  const preferred = minDistForCount(count);
+  const floor = minDistForLeafVisual(44);
 
-  for (let attempt = 0; attempt < 22; attempt++) {
-    const candidates = buildCandidates(
-      Math.max(ABSOLUTE_FLOOR * 0.9, minDist * 0.85),
-      seed + attempt * 17,
-      count * 10
-    );
-    const picked = pickWithMinDist(
-      candidates,
-      count,
-      minDist,
-      seed + attempt * 41
-    );
+  let minDist = preferred;
+  let bestPoints: { x: number; y: number }[] = [];
+  let bestDist = preferred;
+
+  for (let attempt = 0; attempt < 18; attempt++) {
+    const picked = packAtDistance(count, minDist, seed + attempt * 23);
     if (picked.length >= count) {
-      best = picked.slice(0, count);
+      bestPoints = picked.slice(0, count);
+      bestDist = minDist;
       break;
     }
-    if (picked.length > best.length) best = picked;
-    minDist = Math.max(ABSOLUTE_FLOOR, minDist * 0.9);
-  }
-
-  if (best.length < count) {
-    const candidates = buildCandidates(
-      ABSOLUTE_FLOOR * 0.8,
-      seed + 777,
-      count * 20
-    );
-    best = pickWithMinDist(candidates, count, ABSOLUTE_FLOOR, seed + 888);
-  }
-
-  const slots: LeafSlot[] = best.slice(0, count).map((p) =>
-    makeSlot(p.x, p.y, rand, count)
-  );
-
-  // Bảo đảm đủ count — xoắn ốc rộng vẫn giữ ABSOLUTE_FLOOR
-  const grid = new DistGrid(ABSOLUTE_FLOOR);
-  for (const s of slots) grid.add(s.x, s.y);
-  let n = 0;
-  while (slots.length < count && n < count * 200) {
-    n++;
-    const t = n * 0.45;
-    const ring = 0.04 + (n % 90) * 0.0055;
-    const x = Math.min(X_MAX, Math.max(X_MIN, 0.5 + Math.cos(t) * ring * 1.85));
-    const y = Math.min(Y_MAX, Math.max(Y_MIN, 0.08 + (n % 80) * 0.0078));
-    if (!inTreeSilhouette(x, y)) continue;
-    if (grid.tooClose(x, y, ABSOLUTE_FLOOR)) continue;
-    grid.add(x, y);
-    slots.push(makeSlot(x, y, rand, count));
-  }
-
-  // Nới sàn dần cho tới khi đủ chỗ (ưu tiên vẫn có khe; không bỏ sót slot)
-  let soft = ABSOLUTE_FLOOR;
-  while (slots.length < count && soft >= 0.012) {
-    soft *= 0.88;
-    for (let y = Y_MIN; y <= Y_MAX + 1e-9 && slots.length < count; y += soft) {
-      for (
-        let x = X_MIN;
-        x <= X_MAX + 1e-9 && slots.length < count;
-        x += soft
-      ) {
-        if (!inTreeSilhouette(x, y)) continue;
-        if (grid.tooClose(x, y, soft)) continue;
-        grid.add(x, y);
-        slots.push(makeSlot(x, y, rand, count));
-      }
+    if (picked.length > bestPoints.length) {
+      bestPoints = picked;
+      bestDist = minDist;
     }
+    const next = minDist * 0.93;
+    if (next < floor) {
+      // Gói tối đa ở sàn
+      const maxPack = packAtDistance(count * 2, floor, seed + 900);
+      if (maxPack.length > bestPoints.length) {
+        bestPoints = maxPack.slice(0, count);
+        bestDist = floor;
+      }
+      break;
+    }
+    minDist = next;
   }
 
-  // Cùng lắm: xếp zigzag trong khung tán (vẫn tránh đè hoàn toàn nếu được)
-  let i = 0;
-  while (slots.length < count) {
-    const col = i % 24;
-    const row = Math.floor(i / 24);
-    const x = X_MIN + ((col + 0.5) / 24) * (X_MAX - X_MIN);
-    const y = Y_MIN + ((row + 0.5) / 36) * (Y_MAX - Y_MIN);
-    i++;
-    if (i > count * 40) break;
-    if (grid.tooClose(x, y, 0.01)) continue;
-    grid.add(x, y);
-    slots.push(makeSlot(x, y, rand, count));
-  }
-
-  return slots.slice(0, count).sort((a, b) => a.y - b.y);
+  return bestPoints
+    .slice(0, count)
+    .map((p) => makeSlot(p.x, p.y, rand, bestDist))
+    .sort((a, b) => a.y - b.y);
 }
 
 /** Export vùng tán cho vẽ SVG */

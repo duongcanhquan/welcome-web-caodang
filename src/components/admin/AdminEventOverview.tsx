@@ -112,8 +112,12 @@ export function AdminEventOverview({
         <InfoRow label="Đã nộp" value={`${settings.totalSubmissions} bạn`} />
         <InfoRow label="Ảnh tối đa" value={`${settings.maxFileMb} MB`} />
         <InfoRow
-          label="Rate limit"
-          value={`${settings.rateLimitPerIp}/IP·24h`}
+          label="Giới hạn IP"
+          value={
+            settings.rateLimitPerIp <= 0
+              ? "Không giới hạn"
+              : `${settings.rateLimitPerIp}/IP·24h`
+          }
         />
         <InfoRow label="Fill ratio" value={String(settings.fillRatio)} />
         <InfoRow

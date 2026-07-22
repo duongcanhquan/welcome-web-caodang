@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
+import { findLeafByName } from "@/lib/tree/find-leaf";
 import { TreeCanvas } from "./TreeCanvas";
 import { LeafDetailCard } from "./LeafDetailCard";
 
@@ -46,17 +47,13 @@ export function ViewerTreeView({
   );
 
   const findByName = useCallback(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return;
+    const match = findLeafByName(searchable, search);
+    if (!match) return;
 
-    const match = searchable.find((l) => l.name!.toLowerCase().includes(q));
-
-    if (match) {
-      setHighlightedId(match.id);
-      setShowFirefly(true);
-      setTimeout(() => setShowFirefly(false), 2500);
-      setTimeout(() => setSelectedLeaf(match), 800);
-    }
+    setHighlightedId(match.id);
+    setShowFirefly(true);
+    setTimeout(() => setShowFirefly(false), 2500);
+    setTimeout(() => setSelectedLeaf(match), 800);
   }, [search, searchable]);
 
   return (

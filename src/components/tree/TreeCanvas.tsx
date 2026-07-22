@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { TreeLayout, TreeLeaf } from "@/lib/tree/types";
 import { computeTreeCamera } from "@/lib/tree/fit-camera";
+import {
+  computeBaseLeafSize,
+  leafHitRadiusMultiplier,
+} from "@/lib/tree/leaf-size";
 import { MagicalSkyBackground } from "@/components/motion/MagicalSkyBackground";
 import { MightyTreeArt } from "./MightyTreeArt";
 import { TreeLeafNode } from "./TreeLeafNode";
@@ -38,7 +42,6 @@ export function TreeCanvas({
   const pointerDownRef = useRef<{ x: number; y: number } | null>(null);
 
   const { width: W, height: H } = layout.dimensions;
-  const baseLeafSize = mode === "mini" ? 28 : presentation ? 58 : 52;
   const skyVariant = presentation ? "twilight" : "tree";
 
   const photoLeaves = useMemo(
@@ -48,6 +51,12 @@ export function TreeCanvas({
         .sort((a, b) => a.y - b.y),
     [layout.leaves]
   );
+
+  const baseLeafSize = computeBaseLeafSize(photoLeaves.length, {
+    mini: mode === "mini",
+    presentation,
+  });
+  const hitMul = leafHitRadiusMultiplier(baseLeafSize);
 
   const fitToViewport = useCallback(() => {
     if (mode === "mini" || !containerRef.current) return;
@@ -101,14 +110,14 @@ export function TreeCanvas({
         const cy = leaf.y * H;
         const radius = (baseLeafSize * leaf.scale) / 2;
         const dist = Math.hypot(canvasX - cx, canvasY - cy);
-        if (dist <= radius * 1.4 && dist < bestDist) {
+        if (dist <= radius * hitMul && dist < bestDist) {
           best = leaf;
           bestDist = dist;
         }
       }
       return best;
     },
-    [W, H, baseLeafSize, photoLeaves, onLeafClick]
+    [W, H, baseLeafSize, hitMul, photoLeaves, onLeafClick]
   );
 
   const handlePointerDown = useCallback(
